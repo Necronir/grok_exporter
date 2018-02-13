@@ -16,11 +16,12 @@ package v2
 
 import (
 	"fmt"
-	"github.com/fstab/grok_exporter/templates"
-	"gopkg.in/yaml.v2"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fstab/grok_exporter/templates"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -53,6 +54,7 @@ type Config struct {
 type GlobalConfig struct {
 	ConfigVersion          int           `yaml:"config_version,omitempty"`
 	RetentionCheckInterval time.Duration `yaml:"retention_check_interval,omitempty"` // implicitly parsed with time.ParseDuration()
+	PushgatewayAddr        string        `yaml:"pushgate_addr, omitempty`            // pushgateway address
 }
 
 type InputConfig struct {
@@ -86,6 +88,12 @@ type MetricConfig struct {
 	DeleteMatch          string               `yaml:"delete_match,omitempty"`
 	DeleteLabels         map[string]string    `yaml:"delete_labels,omitempty"` // TODO: Make sure that DeleteMatch is not nil if DeleteLabels are used.
 	DeleteLabelTemplates []templates.Template `yaml:"-"`                       // parsed version of DeleteLabels, will not be serialized to yaml.
+
+	/*************************pushgateway related config*****************************/
+	Push           bool                 `yaml:",omitempty"`             // if metric needs to be pushed
+	JobName        string               `yaml:"job_name,omitempty"`     // job name used as label when pushing metric
+	GroupingKey    map[string]string    `yaml:"grouping_key,omitempty"` // grouping key used when pushing metric
+	GroupTemplates []templates.Template `yaml:"-"`
 }
 
 type MetricsConfig []MetricConfig
@@ -116,6 +124,9 @@ func (c *GlobalConfig) addDefaults() {
 	if c.RetentionCheckInterval == 0 {
 		c.RetentionCheckInterval = defaultRetentionCheckInterval
 	}
+    if len(c.PushgatewayAddr) == 0 {
+        c.PushgatewayAddr = "localhost:9091"
+    }
 }
 
 func (c *InputConfig) addDefaults() {
@@ -141,6 +152,12 @@ func (c *ServerConfig) addDefaults() {
 }
 
 func (cfg *Config) validate() error {
+	// check global configs, particularly pushgateway address format
+	err := cfg.Global.validate()
+	if err != nil {
+		return err
+	}
+
 	err := cfg.Input.validate()
 	if err != nil {
 		return err
@@ -158,6 +175,14 @@ func (cfg *Config) validate() error {
 		return err
 	}
 	return nil
+}
+
+func (c *GlobalConfig) validate() error {
+	if c.PushgatewayAddr != nil {
+		if len(c.PushgatewayAddr) == 0 {
+			return fmt.Errorf("Address of Pushgateway cannot be nil")
+		}
+	}
 }
 
 func (c *InputConfig) validate() error {
@@ -279,6 +304,18 @@ func (c *MetricConfig) validate() error {
 			return fmt.Errorf("Invalid metric configuration: '%v' cannot be used as a delete_label, because the metric does not have a label named '%v'.", deleteLabelTemplate.Name(), deleteLabelTemplate.Name())
 		}
 	}
+	for _, groupingKeyTemplate := range c.GroupTemplates {
+		found := false
+		for _, labelTemplate := range c.LabelTemplates {
+			if groupingKeyTemplate.Name() == labelTemplate.Name() {
+				found = true
+				break
+			}
+		}
+	}
+	if !found {
+		return fmt.Errorf("Invalid metric configuration: '%v' cannot be used as a grouping_key, because the metric does not have a label named '%v'.", deleteLabelTemplate.Name(), deleteLabelTemplate.Name())
+	}
 	// InitTemplates() validates that labels/delete_labels/value are present as grok_fields in the grok pattern.
 	return nil
 }
@@ -337,6 +374,10 @@ func (metric *MetricConfig) InitTemplates() error {
 			src:  metric.DeleteLabels,
 			dest: &(metric.DeleteLabelTemplates),
 		},
+        {
+            src:  metric.GroupingKey,
+            dest: &(metric.GroupTemplates),
+        }
 	} {
 		*t.dest = make([]templates.Template, 0, len(t.src))
 		for name, templateString := range t.src {

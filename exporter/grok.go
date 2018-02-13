@@ -16,10 +16,11 @@ package exporter
 
 import (
 	"fmt"
-	"github.com/fstab/grok_exporter/config/v2"
-	"github.com/fstab/grok_exporter/templates"
 	"regexp"
 	"strings"
+
+	"github.com/fstab/grok_exporter/config/v2"
+	"github.com/fstab/grok_exporter/templates"
 )
 
 // Compile a grok pattern string into a regular expression.
@@ -44,6 +45,15 @@ func VerifyFieldNames(m *v2.MetricConfig, regex, deleteRegex *OnigurumaRegexp) e
 	}
 	for _, template := range m.DeleteLabelTemplates {
 		err := verifyFieldName(m.Name, template, deleteRegex)
+		if err != nil {
+			return err
+		}
+	}
+
+	// verify grouping key, here grouping key needs to be one of the metric labels
+	// since delete_label is a subset of metric_label
+	for _, template := range m.GroupTemplates {
+		err := verifyFieldName(m.Name, template, regex)
 		if err != nil {
 			return err
 		}

@@ -17,14 +17,15 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/fstab/grok_exporter/config"
 	"github.com/fstab/grok_exporter/config/v2"
 	"github.com/fstab/grok_exporter/exporter"
 	"github.com/fstab/grok_exporter/tailer"
 	"github.com/prometheus/client_golang/prometheus"
-	"net/http"
-	"os"
-	"time"
 )
 
 var (
@@ -84,12 +85,21 @@ func main() {
 			for _, metric := range metrics {
 				start := time.Now()
 				match, err := metric.ProcessMatch(line)
+
+				// set default push flag as true
+				needPush := true
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "WARNING: skipping log line: %v\n", err.Error())
 					fmt.Fprintf(os.Stderr, "%v\n", line)
 					nErrorsByMetric.WithLabelValues(metric.Name()).Inc()
+					needPush = false
 				}
+
 				if match != nil {
+					// we hit one line, check if the corresponding metric needs to be push or not
+					if metric.NeedPush() && needPush {
+						err := pushMetric(metric, cfg.Global.PushgatewayAddr, groupingKey, labelValues)
+					}
 					nMatchesByMetric.WithLabelValues(metric.Name()).Inc()
 					procTimeMicrosecondsByMetric.WithLabelValues(metric.Name()).Add(float64(time.Since(start).Nanoseconds() / int64(1000)))
 					matched = true
@@ -191,13 +201,13 @@ func createMetrics(cfg *v2.Config, patterns *exporter.Patterns, libonig *exporte
 		}
 		switch m.Type {
 		case "counter":
-			result = append(result, exporter.NewCounterMetric(&m, regex, deleteRegex))
+			result = append(result, exporter.NewCounterMetric(&cfg, regex, deleteRegex))
 		case "gauge":
-			result = append(result, exporter.NewGaugeMetric(&m, regex, deleteRegex))
+			result = append(result, exporter.NewGaugeMetric(&cfg, regex, deleteRegex))
 		case "histogram":
-			result = append(result, exporter.NewHistogramMetric(&m, regex, deleteRegex))
+			result = append(result, exporter.NewHistogramMetric(&cfg, regex, deleteRegex))
 		case "summary":
-			result = append(result, exporter.NewSummaryMetric(&m, regex, deleteRegex))
+			result = append(result, exporter.NewSummaryMetric(&cfg, regex, deleteRegex))
 		default:
 			return nil, fmt.Errorf("Failed to initialize metrics: Metric type %v is not supported.", m.Type)
 		}
