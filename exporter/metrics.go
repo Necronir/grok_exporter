@@ -133,12 +133,11 @@ func (m *metric) Name() string {
 }
 
 // return push flag
-func (m *metric) NeedPush() error {
-	if len(m.push) > 0 {
+func (m *metric) NeedPush() bool {
+	if m.push {
 		return m.push
-	} else {
-		return true
 	}
+	return true
 }
 
 // return job name when pushing metric
@@ -218,7 +217,7 @@ func (m *observeMetric) processMatch(line string, cb func(value float64)) (*Matc
 	}
 }
 
-func (m *metricWithLabels) processMatch(line string, cb func(labels map[string]string)) (*Match, error) {
+func (m *metricWithLabels) processMatch(line string, vec deleterMetric, cb func(labels map[string]string)) (*Match, error) {
 	matchResult, err := m.regex.Match(line)
 	if err != nil {
 		return nil, fmt.Errorf("error while processing metric %v: %v", m.Name(), err.Error())
@@ -236,7 +235,7 @@ func (m *metricWithLabels) processMatch(line string, cb func(labels map[string]s
 		// push metric
 		if m.NeedPush() {
 			groupingKey, err := labelValues(m.Name(), matchResult, m.groupingKeyTemplates)
-			pushMetric(m, groupingKey, labels)
+			pushMetric(m, vec, groupingKey, labels)
 		}
 		return &Match{
 			Value:  1.0,
@@ -314,7 +313,7 @@ func (m *metricWithLabels) processDeleteMatch(line string, vec deleterMetric) (*
 		}
 		// delete metric from pushgateway first
 		if m.NeedPush() {
-			groupingKey, err = labelValues(m.Name(), matchResult, m.groupingKeyTemplates)
+			groupingKey, err := labelValues(m.Name(), matchResult, m.groupingKeyTemplates)
 			deleteMetric(m, groupingKey)
 		}
 		for _, matchingLabel := range matchingLabels {
