@@ -18,12 +18,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	configuration "github.com/fstab/grok_exporter/config/v2"
+	"github.com/fstab/grok_exporter/config/v2"
 	"github.com/fstab/grok_exporter/templates"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
@@ -510,7 +509,7 @@ func doRequest(job string, groupingKey map[string]string, targetUrl string, g pr
 	return nil
 }
 
-func newMetric(cfg *configuration, regex, deleteRegex *OnigurumaRegexp) metric {
+func newMetric(cfg *v2.Config, regex, deleteRegex *OnigurumaRegexp) metric {
 	return metric{
 		name:            cfg.MetricConfig.Name,
 		regex:           regex,
@@ -522,7 +521,7 @@ func newMetric(cfg *configuration, regex, deleteRegex *OnigurumaRegexp) metric {
 	}
 }
 
-func newMetricWithLabels(cfg *configuration, regex, deleteRegex *OnigurumaRegexp) metricWithLabels {
+func newMetricWithLabels(cfg *v2.Config, regex, deleteRegex *OnigurumaRegexp) metricWithLabels {
 	return metricWithLabels{
 		metric:               newMetric(cfg, regex, deleteRegex),
 		labelTemplates:       cfg.MetricConfig.LabelTemplates,
@@ -532,21 +531,21 @@ func newMetricWithLabels(cfg *configuration, regex, deleteRegex *OnigurumaRegexp
 	}
 }
 
-func newObserveMetric(cfg *configuration, regex, deleteRegex *OnigurumaRegexp) observeMetric {
+func newObserveMetric(cfg *v2.Config, regex, deleteRegex *OnigurumaRegexp) observeMetric {
 	return observeMetric{
 		metric:        newMetric(cfg, regex, deleteRegex),
 		valueTemplate: cfg.MetricConfig.ValueTemplate,
 	}
 }
 
-func newObserveMetricWithLabels(cfg *configuration, regex, deleteRegex *OnigurumaRegexp) observeMetricWithLabels {
+func newObserveMetricWithLabels(cfg *v2.Config, regex, deleteRegex *OnigurumaRegexp) observeMetricWithLabels {
 	return observeMetricWithLabels{
 		metricWithLabels: newMetricWithLabels(cfg, regex, deleteRegex),
 		valueTemplate:    cfg.MetricConfig.ValueTemplate,
 	}
 }
 
-func NewCounterMetric(cfg *configuration, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
+func NewCounterMetric(cfg *v2.Config, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
 	counterOpts := prometheus.CounterOpts{
 		Name: cfg.MetricConfig.Name,
 		Help: cfg.MetricConfig.Help,
@@ -564,7 +563,7 @@ func NewCounterMetric(cfg *configuration, regex *OnigurumaRegexp, deleteRegex *O
 	}
 }
 
-func NewGaugeMetric(cfg *configuration, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
+func NewGaugeMetric(cfg *v2.Config, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
 	gaugeOpts := prometheus.GaugeOpts{
 		Name: cfg.MetricConfig.Name,
 		Help: cfg.MetricConfig.Help,
@@ -584,7 +583,7 @@ func NewGaugeMetric(cfg *configuration, regex *OnigurumaRegexp, deleteRegex *Oni
 	}
 }
 
-func NewHistogramMetric(cfg *configuration, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
+func NewHistogramMetric(cfg *v2.Config, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
 	histogramOpts := prometheus.HistogramOpts{
 		Name: cfg.MetricConfig.Name,
 		Help: cfg.MetricConfig.Help,
@@ -605,7 +604,7 @@ func NewHistogramMetric(cfg *configuration, regex *OnigurumaRegexp, deleteRegex 
 	}
 }
 
-func NewSummaryMetric(cfg *configuration, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
+func NewSummaryMetric(cfg *v2.Config, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
 	summaryOpts := prometheus.SummaryOpts{
 		Name: cfg.MetricConfig.Name,
 		Help: cfg.MetricConfig.Help,
