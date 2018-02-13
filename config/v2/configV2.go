@@ -124,9 +124,9 @@ func (c *GlobalConfig) addDefaults() {
 	if c.RetentionCheckInterval == 0 {
 		c.RetentionCheckInterval = defaultRetentionCheckInterval
 	}
-    if len(c.PushgatewayAddr) == 0 {
-        c.PushgatewayAddr = "localhost:9091"
-    }
+	if len(c.PushgatewayAddr) == 0 {
+		c.PushgatewayAddr = "localhost:9091"
+	}
 }
 
 func (c *InputConfig) addDefaults() {
@@ -178,11 +178,13 @@ func (cfg *Config) validate() error {
 }
 
 func (c *GlobalConfig) validate() error {
-	if c.PushgatewayAddr != nil {
-		if len(c.PushgatewayAddr) == 0 {
-			return fmt.Errorf("Address of Pushgateway cannot be nil")
-		}
+
+	if len(c.PushgatewayAddr) == 0 {
+		return fmt.Errorf("Address of Pushgateway cannot be nil")
+	} else {
+		return nil
 	}
+
 }
 
 func (c *InputConfig) validate() error {
@@ -312,10 +314,11 @@ func (c *MetricConfig) validate() error {
 				break
 			}
 		}
+		if !found {
+			return fmt.Errorf("Invalid metric configuration: '%v' cannot be used as a grouping_key, because the metric does not have a label named '%v'.", groupingKeyTemplate.Name(), groupingKeyTemplate.Name())
+		}
 	}
-	if !found {
-		return fmt.Errorf("Invalid metric configuration: '%v' cannot be used as a grouping_key, because the metric does not have a label named '%v'.", deleteLabelTemplate.Name(), deleteLabelTemplate.Name())
-	}
+
 	// InitTemplates() validates that labels/delete_labels/value are present as grok_fields in the grok pattern.
 	return nil
 }
@@ -374,10 +377,10 @@ func (metric *MetricConfig) InitTemplates() error {
 			src:  metric.DeleteLabels,
 			dest: &(metric.DeleteLabelTemplates),
 		},
-        {
-            src:  metric.GroupingKey,
-            dest: &(metric.GroupTemplates),
-        },
+		{
+			src:  metric.GroupingKey,
+			dest: &(metric.GroupTemplates),
+		},
 	} {
 		*t.dest = make([]templates.Template, 0, len(t.src))
 		for name, templateString := range t.src {
