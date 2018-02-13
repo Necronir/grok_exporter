@@ -158,7 +158,7 @@ func (cfg *Config) validate() error {
 		return err
 	}
 
-	err := cfg.Input.validate()
+	err = cfg.Input.validate()
 	if err != nil {
 		return err
 	}
@@ -377,7 +377,7 @@ func (metric *MetricConfig) InitTemplates() error {
         {
             src:  metric.GroupingKey,
             dest: &(metric.GroupTemplates),
-        }
+        },
 	} {
 		*t.dest = make([]templates.Template, 0, len(t.src))
 		for name, templateString := range t.src {
