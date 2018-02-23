@@ -425,7 +425,7 @@ func (m *summaryVecMetric) ProcessRetention() error {
 	return m.processRetention(m.summaryVec)
 }
 
-func pushMetric(m *metricWithLabels, vec deleterMetric, groupingKey map[string]string, labels map[string]string) error {
+func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]string, labels map[string]string) error {
 	r := prometheus.NewRegistry()
 	if err := r.Register(m.metric.Collector()); err != nil {
 		return err
@@ -437,7 +437,7 @@ func pushMetric(m *metricWithLabels, vec deleterMetric, groupingKey map[string]s
 	//remove metric from local collector
 	matchingLabels, err := m.labelValueTracker.DeleteByLabels(labels)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for _, matchingLabel := range matchingLabels {
 		vec.Delete(matchingLabel)
