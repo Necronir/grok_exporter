@@ -236,7 +236,7 @@ func (m *metricWithLabels) processMatch(line string, vec deleterMetric, cb func(
 		// push metric
 		if m.NeedPush() {
 			groupingKey, err := labelValues(m.Name(), matchResult, m.groupingKeyTemplates)
-			pushMetric(m, vec, groupingKey, labels)
+			pushMetric(*m, vec, groupingKey, labels)
 		}
 		return &Match{
 			Value:  1.0,
