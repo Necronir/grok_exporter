@@ -426,8 +426,12 @@ func (m *summaryVecMetric) ProcessRetention() error {
 }
 
 func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]string, labels map[string]string) error {
-	r := prometheus.NewRegistry()
-	if err := r.Register(m.metric.Collector()); err != nil {
+	collector, ok := vec.(prometheus.Collector)
+    if !ok {
+        return fmt.Errorf("Can not convert deleterMetric to collector")
+    }
+    r := prometheus.NewRegistry()
+	if err := r.Register(collector); err != nil {
 		return err
 	}
 	err := doRequest(m.metric.JobName(), groupingKey, m.pushgatewayAddr, r, "POST")
