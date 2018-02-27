@@ -54,7 +54,7 @@ type Config struct {
 type GlobalConfig struct {
 	ConfigVersion          int           `yaml:"config_version,omitempty"`
 	RetentionCheckInterval time.Duration `yaml:"retention_check_interval,omitempty"` // implicitly parsed with time.ParseDuration()
-	PushgatewayAddr        string        `yaml:"pushgate_addr, omitempty`            // pushgateway address
+	PushgatewayAddr        string        `yaml:"pushgateway_addr, omitempty`            // pushgateway address
 }
 
 type InputConfig struct {
@@ -90,7 +90,7 @@ type MetricConfig struct {
 	DeleteLabelTemplates []templates.Template `yaml:"-"`                       // parsed version of DeleteLabels, will not be serialized to yaml.
 
 	/*************************pushgateway related config*****************************/
-	Push           bool                 `yaml:",omitempty"`             // if metric needs to be pushed
+	Push           bool                 `yaml:"push,omitempty"`             // if metric needs to be pushed
 	JobName        string               `yaml:"job_name,omitempty"`     // job name used as label when pushing metric
 	GroupingKey    map[string]string    `yaml:"grouping_key,omitempty"` // grouping key used when pushing metric
 	GroupTemplates []templates.Template `yaml:"-"`
@@ -178,13 +178,7 @@ func (cfg *Config) validate() error {
 }
 
 func (c *GlobalConfig) validate() error {
-
-	if len(c.PushgatewayAddr) == 0 {
-		return fmt.Errorf("Address of Pushgateway cannot be nil")
-	} else {
-		return nil
-	}
-
+    return nil
 }
 
 func (c *InputConfig) validate() error {

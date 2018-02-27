@@ -49,8 +49,6 @@ type Metric interface {
 	NeedPush() bool
 	// Return job_name when pushing matric
 	JobName() string
-	// Return pushgateway addr
-	PushgatewayAddr() string
 }
 
 // Common values for incMetric and observeMetric
@@ -135,10 +133,7 @@ func (m *metric) Name() string {
 
 // return push flag
 func (m *metric) NeedPush() bool {
-	if m.push {
-		return m.push
-	}
-	return true
+	return m.push
 }
 
 // return job name when pushing metric
@@ -234,9 +229,19 @@ func (m *metricWithLabels) processMatch(line string, vec deleterMetric, cb func(
 		cb(labels)
 
 		// push metric
+        fmt.Print(fmt.Sprintf("[DEBUG] push flag for %v is %v\n", m.Name(), m.NeedPush()))
 		if m.NeedPush() {
 			groupingKey, err := labelValues(m.Name(), matchResult, m.groupingKeyTemplates)
-			pushMetric(*m, vec, groupingKey, labels)
+            if err == nil {
+                fmt.Print(fmt.Sprintf("[PUSH] Pushing metric %v\n", m.Name()))
+                e := pushMetric(*m, vec, groupingKey, labels)
+                //TODO: should we care about the push result?
+                if e != nil {
+                    fmt.Println(e.Error())
+                }
+            } else {
+                return nil, fmt.Errorf("error getting grouping key %v", err.Error())
+            }
 		}
 		return &Match{
 			Value:  1.0,
@@ -267,9 +272,18 @@ func (m *observeMetricWithLabels) processMatch(line string, vec deleterMetric, c
 		cb(floatVal, labels)
 
 		// push metric
+        fmt.Print(fmt.Sprintf("[DEBUG] push flag for %v is %v\n", m.Name(), m.NeedPush()))
 		if m.NeedPush() {
-			groupingKey, err := labelValues(m.Name(), matchResult, m.groupingKeyTemplates)
-			pushMetric(m.metricWithLabels, vec, groupingKey, labels)
+            groupingKey, err := labelValues(m.Name(), matchResult, m.groupingKeyTemplates)
+            if err == nil {
+                fmt.Print(fmt.Sprintf("[PUSH] Pushing metric %v\n", m.Name()))
+                e := pushMetric(m.metricWithLabels, vec, groupingKey, labels)
+                if e != nil {
+                    fmt.Println(e.Error())
+                }
+            } else {
+                return nil, fmt.Errorf("error getting grouping key %v", err.Error())
+            }
 		}
 		return &Match{
 			Value:  floatVal,
@@ -315,7 +329,15 @@ func (m *metricWithLabels) processDeleteMatch(line string, vec deleterMetric) (*
 		// delete metric from pushgateway first
 		if m.NeedPush() {
 			groupingKey, err := labelValues(m.Name(), matchResult, m.groupingKeyTemplates)
-			deleteMetric(m, groupingKey)
+            if err == nil {
+                fmt.Println(fmt.Sprintf("deleting metric: %v from pushgateway\n", m.Name()))
+                e := deleteMetric(m, groupingKey)
+                if e != nil {
+                    fmt.Println(e.Error())
+                }
+            } else {
+                return nil, fmt.Errorf("error getting grouping key %v", err.Error())
+            }
 		}
 		for _, matchingLabel := range matchingLabels {
 			vec.Delete(matchingLabel)
@@ -436,12 +458,12 @@ func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]st
 	}
 	err := doRequest(m.metric.JobName(), groupingKey, m.pushgatewayAddr, r, "POST")
 	if err != nil {
-		return err
+		return fmt.Errorf("Can not push metric %v to pushgateway: %v, error with: %v\n", m.Name(), m.pushgatewayAddr, err.Error())
 	}
 	//remove metric from local collector
 	matchingLabels, err := m.labelValueTracker.DeleteByLabels(labels)
 	if err != nil {
-		return err
+		return fmt.Errorf("Metric with target labels not found, can not remove from local collector, error: %v\n", err.Error())
 	}
 	for _, matchingLabel := range matchingLabels {
 		vec.Delete(matchingLabel)
