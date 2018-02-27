@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fstab/grok_exporter/config/v2"
+	configuration "github.com/fstab/grok_exporter/config/v2"
 	"github.com/fstab/grok_exporter/templates"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
@@ -427,10 +427,10 @@ func (m *summaryVecMetric) ProcessRetention() error {
 
 func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]string, labels map[string]string) error {
 	collector, ok := vec.(prometheus.Collector)
-    if !ok {
-        return fmt.Errorf("Can not convert deleterMetric to collector")
-    }
-    r := prometheus.NewRegistry()
+	if !ok {
+		return fmt.Errorf("Can not convert deleterMetric to collector")
+	}
+	r := prometheus.NewRegistry()
 	if err := r.Register(collector); err != nil {
 		return err
 	}
@@ -513,118 +513,118 @@ func doRequest(job string, groupingKey map[string]string, targetUrl string, g pr
 	return nil
 }
 
-func newMetric(cfg *v2.Config, regex, deleteRegex *OnigurumaRegexp) metric {
+func newMetric(cfg *configuration.MetricConfig, globalConfig *configuration.GlobalConfig, regex, deleteRegex *OnigurumaRegexp) metric {
 	return metric{
-		name:            cfg.Metrics.Name,
+		name:            cfg.Name,
 		regex:           regex,
 		deleteRegex:     deleteRegex,
-		retention:       cfg.Metrics.Retention,
-		push:            cfg.Metrics.Push,
-		jobName:         cfg.Metrics.JobName,
-		pushgatewayAddr: cfg.Global.PushgatewayAddr,
+		retention:       cfg.Retention,
+		push:            cfg.Push,
+		jobName:         cfg.JobName,
+		pushgatewayAddr: globalConfig.PushgatewayAddr,
 	}
 }
 
-func newMetricWithLabels(cfg *v2.Config, regex, deleteRegex *OnigurumaRegexp) metricWithLabels {
+func newMetricWithLabels(cfg *configuration.MetricConfig, globalConfig *configuration.GlobalConfig, regex, deleteRegex *OnigurumaRegexp) metricWithLabels {
 	return metricWithLabels{
-		metric:               newMetric(cfg, regex, deleteRegex),
-		labelTemplates:       cfg.Metrics.LabelTemplates,
-		deleteLabelTemplates: cfg.Metrics.DeleteLabelTemplates,
-		groupingKeyTemplates: cfg.Metrics.GroupTemplates,
-		labelValueTracker:    NewLabelValueTracker(prometheusLabels(cfg.Metrics.LabelTemplates)),
+		metric:               newMetric(cfg, globalConfig, regex, deleteRegex),
+		labelTemplates:       cfg.LabelTemplates,
+		deleteLabelTemplates: cfg.DeleteLabelTemplates,
+		groupingKeyTemplates: cfg.GroupTemplates,
+		labelValueTracker:    NewLabelValueTracker(prometheusLabels(cfg.LabelTemplates)),
 	}
 }
 
-func newObserveMetric(cfg *v2.Config, regex, deleteRegex *OnigurumaRegexp) observeMetric {
+func newObserveMetric(cfg *configuration.MetricConfig, globalConfig *configuration.GlobalConfig, regex, deleteRegex *OnigurumaRegexp) observeMetric {
 	return observeMetric{
-		metric:        newMetric(cfg, regex, deleteRegex),
-		valueTemplate: cfg.Metrics.ValueTemplate,
+		metric:        newMetric(cfg, globalConfig, regex, deleteRegex),
+		valueTemplate: cfg.ValueTemplate,
 	}
 }
 
-func newObserveMetricWithLabels(cfg *v2.Config, regex, deleteRegex *OnigurumaRegexp) observeMetricWithLabels {
+func newObserveMetricWithLabels(cfg *configuration.MetricConfig, globalConfig *configuration.GlobalConfig, regex, deleteRegex *OnigurumaRegexp) observeMetricWithLabels {
 	return observeMetricWithLabels{
-		metricWithLabels: newMetricWithLabels(cfg, regex, deleteRegex),
-		valueTemplate:    cfg.Metrics.ValueTemplate,
+		metricWithLabels: newMetricWithLabels(cfg, globalConfig, regex, deleteRegex),
+		valueTemplate:    cfg.ValueTemplate,
 	}
 }
 
-func NewCounterMetric(cfg *v2.Config, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
+func NewCounterMetric(cfg *configuration.MetricConfig, globalConfig *configuration.GlobalConfig, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
 	counterOpts := prometheus.CounterOpts{
-		Name: cfg.Metrics.Name,
-		Help: cfg.Metrics.Help,
+		Name: cfg.Name,
+		Help: cfg.Help,
 	}
-	if len(cfg.Metrics.Labels) == 0 {
+	if len(cfg.Labels) == 0 {
 		return &counterMetric{
-			metric:  newMetric(cfg, regex, deleteRegex),
+			metric:  newMetric(cfg, globalConfig, regex, deleteRegex),
 			counter: prometheus.NewCounter(counterOpts),
 		}
 	} else {
 		return &counterVecMetric{
-			metricWithLabels: newMetricWithLabels(cfg, regex, deleteRegex),
-			counterVec:       prometheus.NewCounterVec(counterOpts, prometheusLabels(cfg.Metrics.LabelTemplates)),
+			metricWithLabels: newMetricWithLabels(cfg, globalConfig, regex, deleteRegex),
+			counterVec:       prometheus.NewCounterVec(counterOpts, prometheusLabels(cfg.LabelTemplates)),
 		}
 	}
 }
 
-func NewGaugeMetric(cfg *v2.Config, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
+func NewGaugeMetric(cfg *configuration.MetricConfig, globalConfig *configuration.GlobalConfig, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
 	gaugeOpts := prometheus.GaugeOpts{
-		Name: cfg.Metrics.Name,
-		Help: cfg.Metrics.Help,
+		Name: cfg.Name,
+		Help: cfg.Help,
 	}
-	if len(cfg.Metrics.Labels) == 0 {
+	if len(cfg.Labels) == 0 {
 		return &gaugeMetric{
-			observeMetric: newObserveMetric(cfg, regex, deleteRegex),
-			cumulative:    cfg.Metrics.Cumulative,
+			observeMetric: newObserveMetric(cfg, globalConfig, regex, deleteRegex),
+			cumulative:    cfg.Cumulative,
 			gauge:         prometheus.NewGauge(gaugeOpts),
 		}
 	} else {
 		return &gaugeVecMetric{
-			observeMetricWithLabels: newObserveMetricWithLabels(cfg, regex, deleteRegex),
-			cumulative:              cfg.Metrics.Cumulative,
-			gaugeVec:                prometheus.NewGaugeVec(gaugeOpts, prometheusLabels(cfg.Metrics.LabelTemplates)),
+			observeMetricWithLabels: newObserveMetricWithLabels(cfg, globalConfig, regex, deleteRegex),
+			cumulative:              cfg.Cumulative,
+			gaugeVec:                prometheus.NewGaugeVec(gaugeOpts, prometheusLabels(cfg.LabelTemplates)),
 		}
 	}
 }
 
-func NewHistogramMetric(cfg *v2.Config, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
+func NewHistogramMetric(cfg *configuration.MetricConfig, globalConfig *configuration.GlobalConfig, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
 	histogramOpts := prometheus.HistogramOpts{
-		Name: cfg.Metrics.Name,
-		Help: cfg.Metrics.Help,
+		Name: cfg.Name,
+		Help: cfg.Help,
 	}
-	if len(cfg.Metrics.Buckets) > 0 {
+	if len(cfg.Buckets) > 0 {
 		histogramOpts.Buckets = cfg.Buckets
 	}
-	if len(cfg.Metrics.Labels) == 0 {
+	if len(cfg.Labels) == 0 {
 		return &histogramMetric{
-			observeMetric: newObserveMetric(cfg, regex, deleteRegex),
+			observeMetric: newObserveMetric(cfg, globalConfig, regex, deleteRegex),
 			histogram:     prometheus.NewHistogram(histogramOpts),
 		}
 	} else {
 		return &histogramVecMetric{
-			observeMetricWithLabels: newObserveMetricWithLabels(cfg, regex, deleteRegex),
-			histogramVec:            prometheus.NewHistogramVec(histogramOpts, prometheusLabels(cfg.Metrics.LabelTemplates)),
+			observeMetricWithLabels: newObserveMetricWithLabels(cfg, globalConfig, regex, deleteRegex),
+			histogramVec:            prometheus.NewHistogramVec(histogramOpts, prometheusLabels(cfg.LabelTemplates)),
 		}
 	}
 }
 
-func NewSummaryMetric(cfg *v2.Config, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
+func NewSummaryMetric(cfg *configuration.MetricConfig, globalConfig *configuration.GlobalConfig, regex *OnigurumaRegexp, deleteRegex *OnigurumaRegexp) Metric {
 	summaryOpts := prometheus.SummaryOpts{
-		Name: cfg.Metrics.Name,
-		Help: cfg.Metrics.Help,
+		Name: cfg.Name,
+		Help: cfg.Help,
 	}
-	if len(cfg.Metrics.Quantiles) > 0 {
+	if len(cfg.Quantiles) > 0 {
 		summaryOpts.Objectives = cfg.Quantiles
 	}
-	if len(cfg.Metrics.Labels) == 0 {
+	if len(cfg.Labels) == 0 {
 		return &summaryMetric{
-			observeMetric: newObserveMetric(cfg, regex, deleteRegex),
+			observeMetric: newObserveMetric(cfg, globalConfig, regex, deleteRegex),
 			summary:       prometheus.NewSummary(summaryOpts),
 		}
 	} else {
 		return &summaryVecMetric{
-			observeMetricWithLabels: newObserveMetricWithLabels(cfg, regex, deleteRegex),
-			summaryVec:              prometheus.NewSummaryVec(summaryOpts, prometheusLabels(cfg.Metrics.LabelTemplates)),
+			observeMetricWithLabels: newObserveMetricWithLabels(cfg, globalConfig, regex, deleteRegex),
+			summaryVec:              prometheus.NewSummaryVec(summaryOpts, prometheusLabels(cfg.LabelTemplates)),
 		}
 	}
 }

@@ -86,20 +86,14 @@ func main() {
 				start := time.Now()
 				match, err := metric.ProcessMatch(line)
 
-				// set default push flag as true
-				needPush := true
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "WARNING: skipping log line: %v\n", err.Error())
 					fmt.Fprintf(os.Stderr, "%v\n", line)
 					nErrorsByMetric.WithLabelValues(metric.Name()).Inc()
-					needPush = false
 				}
 
 				if match != nil {
-					// we hit one line, check if the corresponding metric needs to be push or not
-					if metric.NeedPush() && needPush {
-						err := pushMetric(metric, cfg.Global.PushgatewayAddr, groupingKey, labelValues)
-					}
+					// we hit one line
 					nMatchesByMetric.WithLabelValues(metric.Name()).Inc()
 					procTimeMicrosecondsByMetric.WithLabelValues(metric.Name()).Add(float64(time.Since(start).Nanoseconds() / int64(1000)))
 					matched = true
@@ -201,13 +195,13 @@ func createMetrics(cfg *v2.Config, patterns *exporter.Patterns, libonig *exporte
 		}
 		switch m.Type {
 		case "counter":
-			result = append(result, exporter.NewCounterMetric(&cfg, regex, deleteRegex))
+			result = append(result, exporter.NewCounterMetric(&m, &(cfg.Global), regex, deleteRegex))
 		case "gauge":
-			result = append(result, exporter.NewGaugeMetric(&cfg, regex, deleteRegex))
+			result = append(result, exporter.NewGaugeMetric(&m, &(cfg.Global), regex, deleteRegex))
 		case "histogram":
-			result = append(result, exporter.NewHistogramMetric(&cfg, regex, deleteRegex))
+			result = append(result, exporter.NewHistogramMetric(&m, &(cfg.Global), regex, deleteRegex))
 		case "summary":
-			result = append(result, exporter.NewSummaryMetric(&cfg, regex, deleteRegex))
+			result = append(result, exporter.NewSummaryMetric(&m, &(cfg.Global), regex, deleteRegex))
 		default:
 			return nil, fmt.Errorf("Failed to initialize metrics: Metric type %v is not supported.", m.Type)
 		}
