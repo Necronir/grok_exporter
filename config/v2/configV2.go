@@ -54,7 +54,7 @@ type Config struct {
 type GlobalConfig struct {
 	ConfigVersion          int           `yaml:"config_version,omitempty"`
 	RetentionCheckInterval time.Duration `yaml:"retention_check_interval,omitempty"` // implicitly parsed with time.ParseDuration()
-	PushgatewayAddr        string        `yaml:"pushgateway_addr, omitempty`            // pushgateway address
+	PushgatewayAddr        string        `yaml:"pushgateway_addr,omitempty"`            // pushgateway address
 }
 
 type InputConfig struct {

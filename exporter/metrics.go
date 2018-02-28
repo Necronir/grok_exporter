@@ -465,6 +465,7 @@ func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]st
 	if err != nil {
 		return fmt.Errorf("Metric with target labels not found, can not remove from local collector, error: %v\n", err.Error())
 	}
+    fmt.Println("[DEBUG] Deleting Metrics from local collector")
 	for _, matchingLabel := range matchingLabels {
 		vec.Delete(matchingLabel)
 	}
@@ -528,6 +529,7 @@ func doRequest(job string, groupingKey map[string]string, targetUrl string, g pr
 	if err != nil {
 		return err
 	}
+    fmt.Print(fmt.Sprintf("response code: %v, target url: %v\n", response.StatusCode, targetUrl))
 	defer response.Body.Close()
 	if response.StatusCode != 202 {
 		return fmt.Errorf("unexpected status code %d, method %s", response.StatusCode, method)
