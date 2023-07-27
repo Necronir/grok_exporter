@@ -1,7 +1,6 @@
 [![Build Status](https://travis-ci.org/fstab/grok_exporter.svg?branch=master)](https://travis-ci.org/fstab/grok_exporter) [![Build status](https://ci.appveyor.com/api/projects/status/d8aq0pa3yfoapd69?svg=true)](https://ci.appveyor.com/project/fstab/grok-exporter) [![Coverage Status](https://coveralls.io/repos/github/fstab/grok_exporter/badge.svg?branch=master)](https://coveralls.io/github/fstab/grok_exporter?branch=master)
 
-grok_exporter
-=============
+![grok_exporter](docs/logo.svg)
 
 Export [Prometheus] metrics from arbitrary unstructured log data.
 
@@ -36,62 +35,44 @@ Example configuration:
 
 ```yaml
 global:
-    config_version: 2
+  config_version: 3
 input:
-    type: file
-    path: ./example/example.log
-    readall: true
-grok:
-    patterns_dir: ./logstash-patterns-core/patterns
+  type: file
+  path: ./example/example.log
+  readall: true
+imports:
+- type: grok_patterns
+  dir: ./logstash-patterns-core/patterns
 metrics:
-    - type: counter
-      name: grok_example_lines_total
-      help: Counter metric example with labels.
-      match: '%{DATE} %{TIME} %{USER:user} %{NUMBER}'
-      labels:
-          user: '{{.user}}'
+- type: counter
+  name: grok_example_lines_total
+  help: Counter metric example with labels.
+  match: '%{DATE} %{TIME} %{USER:user} %{NUMBER}'
+  labels:
+    user: '{{.user}}'
+    logfile: '{{base .logfile}}'
 server:
-    port: 9144
+  port: 9144
 ```
 
-[CONFIG.md] describes the `grok_exporter` configuration file and shows how to define Grok patterns, Prometheus metrics, and labels.
-
-Status
-------
-
-Operating system support:
-
-* Linux 64 Bit: [Supported](https://travis-ci.org/fstab/grok_exporter)
-* Windows 64 Bit: [Supported](https://ci.appveyor.com/project/fstab/grok-exporter)
-* mac OS 64 Bit: [Supported](https://travis-ci.org/fstab/grok_exporter)
-
-Grok pattern support:
-
-* We are able to compile all of Grok's default patterns on [github.com/logstash-plugins/logstash-patterns-core](https://github.com/logstash-plugins/logstash-patterns-core/tree/818b7aa60d3c2fea008ea673dbbc49179c6df2c8/patterns).
-
-Prometheus support:
-
-* [Counter] metrics: [Supported](CONFIG.md#metrics-section)
-* [Gauge] metrics: [Supported](CONFIG.md#metrics-section)
-* [Histogram] metrics: [Supported](CONFIG.md#metrics-section)
-* [Summary] metrics: [Supported](CONFIG.md#metrics-section)
+[CONFIG.md] describes the `grok_exporter` configuration file and shows how to define Grok patterns, Prometheus metrics, and labels.  It also details how to configure file, stdin, and webhook inputs.
 
 How to build from source
 -----------------------
 
-In order to compile `grok_exporter` from source, you need [Go] installed and `$GOPATH` set, and you need the header files for the [Oniguruma] regular expression library.
+In order to compile `grok_exporter` from source, you need
+
+* [Go] installed and `$GOPATH` set.
+* [gcc] installed for `cgo`. On Ubuntu, use `apt-get install build-essential`.
+* Header files for the [Oniguruma] regular expression library, see below.
 
 **Installing the Oniguruma library on OS X**
 
-The current version of `brew install oniguruma` will install Oniguruma 6.1.0. Because of [this bug](https://github.com/kkos/oniguruma/issues/23) version 6.1.0 will not work with grok_exporter. Use the following to install the stable 5.9.6 version:
-
 ```bash
-brew install fstab/oniguruma/oniguruma-5.9.6
+brew install oniguruma
 ```
 
 **Installing the Oniguruma library on Ubuntu Linux**
-
-The current version on Ubuntu is 5.9.6, which is good:
 
 ```bash
 sudo apt-get install libonig-dev
@@ -99,25 +80,27 @@ sudo apt-get install libonig-dev
 
 **Installing the Oniguruma library from source**
 
-Make sure to use version 5.9.6 until grok_exporter supports newer versions:
-
 ```bash
-wget https://github.com/kkos/oniguruma/releases/download/v5.9.6/onig-5.9.6.tar.gz
-tar xfz onig-5.9.6.tar.gz
-cd onig-5.9.6 && ./configure && make && make install
+curl -sLO https://github.com/kkos/oniguruma/releases/download/v6.9.5_rev1/onig-6.9.5-rev1.tar.gz
+tar xfz onig-6.9.5-rev1.tar.gz
+cd onig-6.9.5
+./configure
+make
+make install
 ```
 
 **Installing grok_exporter**
 
-With Oniguruma 5.9.6 installed, download and compile `grok_exporter` as follows:
-
 ```bash
-go get github.com/fstab/grok_exporter
-cd $GOPATH/src/github.com/fstab/grok_exporter
+git clone https://github.com/fstab/grok_exporter
+cd grok_exporter
 git submodule update --init --recursive
+go install .
 ```
 
-The resulting `grok_exporter` binary will be dynamically linked to the Oniguruma library, i.e. it needs the Oniguruma library to run. The [releases] are statically linked with Oniguruma, i.e. the releases don't require Oniguruma as a run-time dependency. The releases are built with `release.sh`.
+The resulting `grok_exporter` binary will be dynamically linked to the Oniguruma library, i.e. it needs the Oniguruma library to run. The [releases] are statically linked with Oniguruma, i.e. the releases don't require Oniguruma as a run-time dependency. The releases are built with `hack/release.sh`.
+
+_Note: Go 1.13 for Mac OS has a bug affecting the file input. It is recommended to use Go 1.12 on Mac OS until the bug is fixed. Go 1.13.5 is affected. [https://github.com/golang/go/issues/35767](https://github.com/golang/go/issues/35767)._
 
 More Documentation
 ------------------
@@ -163,6 +146,7 @@ You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-
 [ELK stack]: https://www.elastic.co/webinars/introduction-elk-stack
 [Exim]: http://www.exim.org/
 [Go]: https://golang.org/
+[gcc]: https://gcc.gnu.org/
 [Oniguruma]: https://github.com/kkos/oniguruma
 [screenshot.png]: screenshot.png
 [releases]: https://github.com/fstab/grok_exporter/releases

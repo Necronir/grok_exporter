@@ -1,4 +1,4 @@
-// Copyright 2016-2017 The grok_exporter Authors
+// Copyright 2016-2020 The grok_exporter Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,12 +15,20 @@
 package exporter
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	config "github.com/fstab/grok_exporter/config/v3"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 )
+
+type HttpServerPathHandler struct {
+	Path    string
+	Handler http.Handler
+}
 
 // cert and key created with openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -nodes
 
@@ -77,35 +85,34 @@ XLgD9hrDBrTbnKBHHQ6MHpT6ILi4w/e4+5XEUUOBf44ZJE71uRr4ZUA=
 -----END RSA PRIVATE KEY-----
 `
 
-func RunHttpsServerWithDefaultKeys(host string, port int, path string, handler http.Handler) error {
-	cert, err := createTempFile("cert", []byte(defaultCert))
+func RunHttpsServer(cfg config.ServerConfig, httpHandlers []HttpServerPathHandler) error {
+	err := tryOpenPort(cfg.Host, cfg.Port)
+	if err != nil {
+		return listenFailedError(cfg.Host, cfg.Port, err)
+	}
+	for _, httpHandler := range httpHandlers {
+		http.Handle(httpHandler.Path, httpHandler.Handler)
+	}
+	tlsCfg, err := makeTLSConfig(cfg)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(cert)
-	key, err := createTempFile("key", []byte(defaultKey))
-	if err != nil {
-		return err
+	server := &http.Server{
+		Addr:      fmt.Sprintf("%v:%v", cfg.Host, cfg.Port),
+		TLSConfig: tlsCfg,
 	}
-	defer os.Remove(key)
-	return RunHttpsServer(host, port, cert, key, path, handler)
+	return server.ListenAndServeTLS("", "")
 }
 
-func RunHttpsServer(host string, port int, cert, key, path string, handler http.Handler) error {
+func RunHttpServer(host string, port int, httpHandlers []HttpServerPathHandler) error {
 	err := tryOpenPort(host, port)
 	if err != nil {
 		return listenFailedError(host, port, err)
 	}
-	http.Handle(path, handler)
-	return http.ListenAndServeTLS(fmt.Sprintf(":%v", port), cert, key, nil)
-}
-
-func RunHttpServer(host string, port int, path string, handler http.Handler) error {
-	err := tryOpenPort(host, port)
-	if err != nil {
-		return listenFailedError(host, port, err)
+	for _, httpHandler := range httpHandlers {
+		http.Handle(httpHandler.Path, httpHandler.Handler)
 	}
-	http.Handle(path, handler)
+
 	return http.ListenAndServe(fmt.Sprintf("%v:%v", host, port), nil)
 }
 
@@ -143,4 +150,51 @@ func createTempFile(prefix string, data []byte) (string, error) {
 		return "", fmt.Errorf("Failed to close temporary file: %v", err.Error())
 	}
 	return tempFile.Name(), nil
+}
+
+// Assuming serverCfg is valid.
+func makeTLSConfig(cfg config.ServerConfig) (*tls.Config, error) {
+	var (
+		result = &tls.Config{}
+		cert   tls.Certificate
+		bytes  []byte
+		err    error
+	)
+	if len(cfg.Cert) == 0 && len(cfg.Key) == 0 {
+		cert, err = tls.X509KeyPair([]byte(defaultCert), []byte(defaultKey))
+		if err != nil {
+			return nil, fmt.Errorf("unexpected error initializing the built-in SSL certificates: %v", err)
+		}
+	} else if len(cfg.Cert) > 0 && len(cfg.Key) > 0 {
+		cert, err = tls.LoadX509KeyPair(cfg.Cert, cfg.Key)
+		if err != nil {
+			return nil, fmt.Errorf("error reading SSL cert or key file: %v", err)
+		}
+	}
+	result.Certificates = append(result.Certificates, cert)
+
+	if len(cfg.ClientCA) > 0 {
+		result.ClientCAs = x509.NewCertPool()
+		bytes, err = ioutil.ReadFile(cfg.ClientCA)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read client_ca file: %v", err)
+		}
+		if !result.ClientCAs.AppendCertsFromPEM(bytes) {
+			return nil, fmt.Errorf("failed to read certificates from the client_ca file")
+		}
+	}
+
+	switch cfg.ClientAuth {
+	case "RequestClientCert":
+		result.ClientAuth = tls.RequestClientCert
+	case "RequireClientCert":
+		result.ClientAuth = tls.RequireAnyClientCert
+	case "VerifyClientCertIfGiven":
+		result.ClientAuth = tls.VerifyClientCertIfGiven
+	case "RequireAndVerifyClientCert":
+		result.ClientAuth = tls.RequireAndVerifyClientCert
+	case "", "NoClientCert":
+		result.ClientAuth = tls.NoClientCert
+	}
+	return result, nil
 }

@@ -1,4 +1,4 @@
-// Copyright 2016-2017 The grok_exporter Authors
+// Copyright 2016-2020 The grok_exporter Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,27 +17,46 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/fstab/grok_exporter/config"
-	"github.com/fstab/grok_exporter/config/v2"
+	"github.com/fstab/grok_exporter/config/v3"
 	"github.com/fstab/grok_exporter/exporter"
+	"github.com/fstab/grok_exporter/oniguruma"
 	"github.com/fstab/grok_exporter/tailer"
+	"github.com/fstab/grok_exporter/tailer/fswatcher"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 )
 
 var (
-	printVersion = flag.Bool("version", false, "Print the grok_exporter version.")
-	configPath   = flag.String("config", "", "Path to the config file. Try '-config ./example/config.yml' to get started.")
-	showConfig   = flag.Bool("showconfig", false, "Print the current configuration to the console. Example: 'grok_exporter -showconfig -config ./example/config.yml'")
+	printVersion           = flag.Bool("version", false, "Print the grok_exporter version.")
+	configPath             = flag.String("config", "", "Path to the config file. Try '-config ./example/config.yml' to get started.")
+	showConfig             = flag.Bool("showconfig", false, "Print the current configuration to the console. Example: 'grok_exporter -showconfig -config ./example/config.yml'")
+	disableExporterMetrics = flag.Bool("disable-exporter-metrics", false, "If this flag is set, the metrics about the exporter itself (go_*, process_*, promhttp_*) will be excluded from /metrics")
+)
+
+var (
+	logfile = "logfile"
+	extra   = "extra"
 )
 
 const (
 	number_of_lines_matched_label = "matched"
 	number_of_lines_ignored_label = "ignored"
 )
+
+var additionalFieldDefinitions = map[string]string{
+	logfile: "full path of the log file",
+	extra:   "full json log object",
+}
 
 func main() {
 	flag.Parse()
@@ -56,21 +75,43 @@ func main() {
 		fmt.Printf("%v\n", cfg)
 		return
 	}
+	registry := prometheus.NewRegistry()
+	if !*disableExporterMetrics {
+		// init like the default registry, see client_golang/prometheus/registry.go init()
+		registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+		registry.MustRegister(prometheus.NewGoCollector())
+	}
 	patterns, err := initPatterns(cfg)
 	exitOnError(err)
-	libonig, err := exporter.InitOnigurumaLib()
-	exitOnError(err)
-	metrics, err := createMetrics(cfg, patterns, libonig)
+	metrics, err := createMetrics(cfg, patterns)
 	exitOnError(err)
 	for _, m := range metrics {
-		prometheus.MustRegister(m.Collector())
+		registry.MustRegister(m.Collector())
 	}
-	nLinesTotal, nMatchesByMetric, procTimeMicrosecondsByMetric, nErrorsByMetric := initSelfMonitoring(metrics)
+	nLinesTotal, nMatchesByMetric, procTimeMicrosecondsByMetric, nErrorsByMetric := initSelfMonitoring(metrics, registry)
 
-	tail, err := startTailer(cfg)
+	tail, err := startTailer(cfg, registry)
 	exitOnError(err)
-	fmt.Print(startMsg(cfg))
-	serverErrors := startServer(cfg, "/metrics", prometheus.Handler())
+
+	// gather up the handlers with which to start the webserver
+	var httpHandlers []exporter.HttpServerPathHandler
+	metricsHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	if !*disableExporterMetrics {
+		metricsHandler = promhttp.InstrumentMetricHandler(registry, metricsHandler)
+	}
+	httpHandlers = append(httpHandlers, exporter.HttpServerPathHandler{
+		Path:    cfg.Server.Path,
+		Handler: metricsHandler,
+	})
+	if cfg.Input.Type == "webhook" {
+		httpHandlers = append(httpHandlers, exporter.HttpServerPathHandler{
+			Path:    cfg.Input.WebhookPath,
+			Handler: tailer.WebhookHandler(),
+		})
+	}
+
+	fmt.Print(startMsg(cfg, httpHandlers))
+	serverErrors := startServer(cfg.Server, httpHandlers)
 
 	retentionTicker := time.NewTicker(cfg.Global.RetentionCheckInterval)
 
@@ -79,29 +120,34 @@ func main() {
 		case err := <-serverErrors:
 			exitOnError(fmt.Errorf("server error: %v", err.Error()))
 		case err := <-tail.Errors():
-			exitOnError(fmt.Errorf("error reading log lines: %v", err.Error()))
+			if err.Type() == fswatcher.FileNotFound || os.IsNotExist(err.Cause()) {
+				exitOnError(fmt.Errorf("error reading log lines: %v: use 'fail_on_missing_logfile: false' in the input configuration if you want grok_exporter to start even though the logfile is missing", err))
+			} else {
+				exitOnError(fmt.Errorf("error reading log lines: %v", err.Error()))
+			}
 		case line := <-tail.Lines():
 			matched := false
 			for _, metric := range metrics {
 				start := time.Now()
-				match, err := metric.ProcessMatch(line)
+				if !metric.PathMatches(line.File) {
+					continue
+				}
+				match, err := metric.ProcessMatch(line.Line, makeAdditionalFields(line))
 
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "WARNING: skipping log line: %v\n", err.Error())
-					fmt.Fprintf(os.Stderr, "%v\n", line)
+					fmt.Fprintf(os.Stderr, "%v\n", line.Line)
 					nErrorsByMetric.WithLabelValues(metric.Name()).Inc()
-				}
-
-				if match != nil {
+				} else if match != nil {
 					// we hit one line
 					nMatchesByMetric.WithLabelValues(metric.Name()).Inc()
 					procTimeMicrosecondsByMetric.WithLabelValues(metric.Name()).Add(float64(time.Since(start).Nanoseconds() / int64(1000)))
 					matched = true
 				}
-				_, err = metric.ProcessDeleteMatch(line)
+				_, err = metric.ProcessDeleteMatch(line.Line, makeAdditionalFields(line))
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "WARNING: skipping log line: %v\n", err.Error())
-					fmt.Fprintf(os.Stderr, "%v\n", line)
+					fmt.Fprintf(os.Stderr, "%v\n", line.Line)
 					nErrorsByMetric.WithLabelValues(metric.Name()).Inc()
 				}
 				// TODO: create metric to monitor number of matching delete_patterns
@@ -124,7 +170,14 @@ func main() {
 	}
 }
 
-func startMsg(cfg *v2.Config) string {
+func makeAdditionalFields(line *fswatcher.Line) map[string]interface{} {
+	return map[string]interface{}{
+		logfile: line.File,
+		extra:   line.Extra,
+	}
+}
+
+func startMsg(cfg *v3.Config, httpHandlers []exporter.HttpServerPathHandler) string {
 	host := "localhost"
 	if len(cfg.Server.Host) > 0 {
 		host = cfg.Server.Host
@@ -134,7 +187,15 @@ func startMsg(cfg *v2.Config) string {
 			host = hostname
 		}
 	}
-	return fmt.Sprintf("Starting server on %v://%v:%v/metrics\n", cfg.Server.Protocol, host, cfg.Server.Port)
+
+	var sb strings.Builder
+	baseUrl := fmt.Sprintf("%v://%v:%v", cfg.Server.Protocol, host, cfg.Server.Port)
+	sb.WriteString("Starting server on")
+	for _, httpHandler := range httpHandlers {
+		sb.WriteString(fmt.Sprintf(" %v%v", baseUrl, httpHandler.Path))
+	}
+	sb.WriteString("\n")
+	return sb.String()
 }
 
 func exitOnError(err error) {
@@ -155,15 +216,24 @@ func validateCommandLineOrExit() {
 	}
 }
 
-func initPatterns(cfg *v2.Config) (*exporter.Patterns, error) {
+func initPatterns(cfg *v3.Config) (*exporter.Patterns, error) {
 	patterns := exporter.InitPatterns()
-	if len(cfg.Grok.PatternsDir) > 0 {
-		err := patterns.AddDir(cfg.Grok.PatternsDir)
-		if err != nil {
-			return nil, err
+	for _, importedPatterns := range cfg.Imports {
+		if importedPatterns.Type == "grok_patterns" {
+			if len(importedPatterns.Dir) > 0 {
+				err := patterns.AddDir(importedPatterns.Dir)
+				if err != nil {
+					return nil, err
+				}
+			} else if len(importedPatterns.File) > 0 {
+				err := patterns.AddGlob(importedPatterns.File)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
-	for _, pattern := range cfg.Grok.AdditionalPatterns {
+	for _, pattern := range cfg.GrokPatterns {
 		err := patterns.AddPattern(pattern)
 		if err != nil {
 			return nil, err
@@ -172,24 +242,24 @@ func initPatterns(cfg *v2.Config) (*exporter.Patterns, error) {
 	return patterns, nil
 }
 
-func createMetrics(cfg *v2.Config, patterns *exporter.Patterns, libonig *exporter.OnigurumaLib) ([]exporter.Metric, error) {
-	result := make([]exporter.Metric, 0, len(cfg.Metrics))
-	for _, m := range cfg.Metrics {
+func createMetrics(cfg *v3.Config, patterns *exporter.Patterns) ([]exporter.Metric, error) {
+	result := make([]exporter.Metric, 0, len(cfg.AllMetrics))
+	for _, m := range cfg.AllMetrics {
 		var (
-			regex, deleteRegex *exporter.OnigurumaRegexp
+			regex, deleteRegex *oniguruma.Regex
 			err                error
 		)
-		regex, err = exporter.Compile(m.Match, patterns, libonig)
+		regex, err = exporter.Compile(m.Match, patterns)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize metric %v: %v", m.Name, err.Error())
 		}
 		if len(m.DeleteMatch) > 0 {
-			deleteRegex, err = exporter.Compile(m.DeleteMatch, patterns, libonig)
+			deleteRegex, err = exporter.Compile(m.DeleteMatch, patterns)
 			if err != nil {
 				return nil, fmt.Errorf("failed to initialize metric %v: %v", m.Name, err.Error())
 			}
 		}
-		err = exporter.VerifyFieldNames(&m, regex, deleteRegex)
+		err = exporter.VerifyFieldNames(&m, regex, deleteRegex, additionalFieldDefinitions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize metric %v: %v", m.Name, err.Error())
 		}
@@ -209,7 +279,7 @@ func createMetrics(cfg *v2.Config, patterns *exporter.Patterns, libonig *exporte
 	return result, nil
 }
 
-func initSelfMonitoring(metrics []exporter.Metric) (*prometheus.CounterVec, *prometheus.CounterVec, *prometheus.CounterVec, *prometheus.CounterVec) {
+func initSelfMonitoring(metrics []exporter.Metric, registry prometheus.Registerer) (*prometheus.CounterVec, *prometheus.CounterVec, *prometheus.CounterVec, *prometheus.CounterVec) {
 	buildInfo := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "grok_exporter_build_info",
 		Help: "A metric with a constant '1' value labeled by version, builddate, branch, revision, goversion, and platform on which grok_exporter was built.",
@@ -231,11 +301,11 @@ func initSelfMonitoring(metrics []exporter.Metric) (*prometheus.CounterVec, *pro
 		Help: "Number of errors for each metric. If this is > 0 there is an error in the configuration file. Check grok_exporter's console output.",
 	}, []string{"metric"})
 
-	prometheus.MustRegister(buildInfo)
-	prometheus.MustRegister(nLinesTotal)
-	prometheus.MustRegister(nMatchesByMetric)
-	prometheus.MustRegister(procTimeMicrosecondsByMetric)
-	prometheus.MustRegister(nErrorsByMetric)
+	registry.MustRegister(buildInfo)
+	registry.MustRegister(nLinesTotal)
+	registry.MustRegister(nMatchesByMetric)
+	registry.MustRegister(procTimeMicrosecondsByMetric)
+	registry.MustRegister(nErrorsByMetric)
 
 	buildInfo.WithLabelValues(exporter.Version, exporter.BuildDate, exporter.Branch, exporter.Revision, exporter.GoVersion, exporter.Platform).Set(1)
 	// Initializing a value with zero makes the label appear. Otherwise the label is not shown until the first value is observed.
@@ -249,39 +319,51 @@ func initSelfMonitoring(metrics []exporter.Metric) (*prometheus.CounterVec, *pro
 	return nLinesTotal, nMatchesByMetric, procTimeMicrosecondsByMetric, nErrorsByMetric
 }
 
-func startServer(cfg *v2.Config, path string, handler http.Handler) chan error {
+func startServer(cfg v3.ServerConfig, httpHandlers []exporter.HttpServerPathHandler) chan error {
 	serverErrors := make(chan error)
 	go func() {
 		switch {
-		case cfg.Server.Protocol == "http":
-			serverErrors <- exporter.RunHttpServer(cfg.Server.Host, cfg.Server.Port, path, handler)
-		case cfg.Server.Protocol == "https":
-			if cfg.Server.Cert != "" && cfg.Server.Key != "" {
-				serverErrors <- exporter.RunHttpsServer(cfg.Server.Host, cfg.Server.Port, cfg.Server.Cert, cfg.Server.Key, path, handler)
-			} else {
-				serverErrors <- exporter.RunHttpsServerWithDefaultKeys(cfg.Server.Host, cfg.Server.Port, path, handler)
-			}
+		case cfg.Protocol == "http":
+			serverErrors <- exporter.RunHttpServer(cfg.Host, cfg.Port, httpHandlers)
+		case cfg.Protocol == "https":
+			serverErrors <- exporter.RunHttpsServer(cfg, httpHandlers)
 		default:
 			// This cannot happen, because cfg.validate() makes sure that protocol is either http or https.
-			serverErrors <- fmt.Errorf("Configuration error: Invalid 'server.protocol': '%v'. Expecting 'http' or 'https'.", cfg.Server.Protocol)
+			serverErrors <- fmt.Errorf("Configuration error: Invalid 'server.protocol': '%v'. Expecting 'http' or 'https'.", cfg.Protocol)
 		}
 	}()
 	return serverErrors
 }
 
-func startTailer(cfg *v2.Config) (tailer.Tailer, error) {
-	var tail tailer.Tailer
+func startTailer(cfg *v3.Config, registry prometheus.Registerer) (fswatcher.FileTailer, error) {
+	var (
+		tail fswatcher.FileTailer
+		err  error
+	)
+	logger := logrus.New()
+	logger.Level = logrus.WarnLevel
 	switch {
 	case cfg.Input.Type == "file":
 		if cfg.Input.PollInterval == 0 {
-			tail = tailer.RunFseventFileTailer(cfg.Input.Path, cfg.Input.Readall, cfg.Input.FailOnMissingLogfile, nil)
+			tail, err = fswatcher.RunFileTailer(cfg.Input.Globs, cfg.Input.Readall, cfg.Input.FailOnMissingLogfile, logger)
+			if err != nil {
+				return nil, err
+			}
 		} else {
-			tail = tailer.RunPollingFileTailer(cfg.Input.Path, cfg.Input.Readall, cfg.Input.FailOnMissingLogfile, cfg.Input.PollInterval, nil)
+			tail, err = fswatcher.RunPollingFileTailer(cfg.Input.Globs, cfg.Input.Readall, cfg.Input.FailOnMissingLogfile, cfg.Input.PollInterval, logger)
+			if err != nil {
+				return nil, err
+			}
 		}
 	case cfg.Input.Type == "stdin":
 		tail = tailer.RunStdinTailer()
+	case cfg.Input.Type == "webhook":
+		tail = tailer.InitWebhookTailer(&cfg.Input)
+	case cfg.Input.Type == "kafka":
+		tail = tailer.RunKafkaTailer(&cfg.Input)
 	default:
 		return nil, fmt.Errorf("Config error: Input type '%v' unknown.", cfg.Input.Type)
 	}
-	return exporter.BufferedTailerWithMetrics(tail), nil
+	bufferLoadMetric := exporter.NewBufferLoadMetric(logger, cfg.Input.MaxLinesInBuffer > 0, registry)
+	return tailer.BufferedTailerWithMetrics(tail, bufferLoadMetric, logger, cfg.Input.MaxLinesInBuffer), nil
 }

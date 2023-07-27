@@ -1,31 +1,57 @@
 language: go
 
+# go 1.13 is default on ubuntu 20.10 LTS
+# go 1.15 is the latest version, and the version used for the latest release
+
 go:
-  - 1.x
+  - "1.13"
+  - "1.15"
 
 os:
   - linux
   - osx
 
+dist:
+  - focal
+
+# oniguruma 5.9.6 was the default for a long time, and has slightly different API
+# oniguruma 6.9.4 is the current default on ubuntu 20.10 LTS
+# oniguruma 6.9.5-rev1 is the latest version, and the version used for the latest release
+
 env:
   matrix:
     - ONIG_VERSION=5.9.6 MODE=STATIC
-    - ONIG_VERSION=5.9.6 MODE=DYNAMIC
-    - ONIG_VERSION=DEFAULT
+    - ONIG_VERSION=6.9.4 MODE=STATIC
+    - ONIG_VERSION=6.9.4 MODE=STATIC
+    - ONIG_VERSION=6.9.5-rev1 MODE=STATIC
+    - ONIG_VERSION=DEFAULT MODE=DYNAMIC
 
 before_install:
   - |
     set -e ;
     set -x ;
+    if [[ "$TRAVIS_OS_NAME" == "osx" ]] ; then
+        # Workaround for broken OS X build, see https://github.com/travis-ci/travis-ci/issues/8703
+        unset -f cd ;
+    fi
     case "$ONIG_VERSION" in
     "DEFAULT")
         if [[ "$TRAVIS_OS_NAME" == "osx" ]] ; then
             brew update ;
-            brew install fstab/oniguruma/oniguruma-5.9.6 ;
+            brew install oniguruma ;
         elif [[ "$TRAVIS_OS_NAME" == "linux" ]] ; then
             sudo apt-get -qq update ;
             sudo apt-get install libonig-dev ;
         fi
+        ;;
+    "6.9.5-rev1")
+        PROJ_DIR=$(pwd) ;
+        cd /tmp ;
+        curl -sLO https://github.com/kkos/oniguruma/releases/download/v6.9.5_rev1/onig-6.9.5-rev1.tar.gz ;
+        tar xfz onig-6.9.5-rev1.tar.gz ;
+        cd onig-6.9.5 ;
+        ./configure && make && sudo make install ;
+        cd "${PROJ_DIR}" ;
         ;;
     *)
         PROJ_DIR=$(pwd) ;
@@ -60,41 +86,30 @@ script:
     "STATIC")
         if [[ "$TRAVIS_OS_NAME" == "osx" ]] ;
         then
-            sed -i.bak 's;#cgo LDFLAGS: -L/usr/local/lib -lonig;#cgo LDFLAGS: /usr/local/lib/libonig.a;' exporter/oniguruma.go ;
+            sed -i.bak 's;#cgo LDFLAGS: -L/usr/local/lib -lonig;#cgo LDFLAGS: /usr/local/lib/libonig.a;' oniguruma/oniguruma.go ;
         fi ;
-        CGO_LDFLAGS=/usr/local/lib/libonig.a go test -v $(go list ./... | grep -v /vendor/) ;
-        CGO_LDFLAGS=/usr/local/lib/libonig.a go install . ;
+        CGO_LDFLAGS=/usr/local/lib/libonig.a go test -count=1 -v ./... ;
+        CGO_LDFLAGS=/usr/local/lib/libonig.a go install ;
         if $LDD_COMMAND $GOPATH/bin/grok_exporter | grep libonig ;
         then
             echo "ERROR: Expected statically linked binary." >&2 ;
             exit -1 ;
         fi ;
-        ./integration-test.sh ;
+        ./hack/smoke-test.sh ;
         ;;
-    *)
-        go test -v $(go list ./... | grep -v /vendor/) ;
-        go install . ;
+    "DYNAMIC")
+        go test -failfast -count=1 -v ./... ;
+        go install ;
         if ! $LDD_COMMAND $GOPATH/bin/grok_exporter | grep libonig ;
         then
             echo "ERROR: Expected dynamically linked binary." >&2 ;
             exit -1 ;
         fi ;
+        ./hack/smoke-test.sh ;
+        ;;
+    *)
+        echo "Unknown mode $MODE" >&2 ;
+        exit 1 ;
         ;;
     esac ;
-    set +e ;
-
-after_success:
-  - |
-    set -e ;
-    set -x ;
-    if [[ "$TRAVIS_OS_NAME" == "linux" && "$ONIG_VERSION" == "DEFAULT" ]] ;
-    then
-        go get golang.org/x/tools/cmd/cover github.com/mattn/goveralls github.com/modocache/gover ;
-        go list ./... | grep -v /vendor/ | while read package ;
-        do
-            go test -covermode count -coverprofile=$(basename $package).coverprofile $package ;
-        done ;
-        gover && goveralls -coverprofile=gover.coverprofile -service=travis-ci ;
-        rm *.coverprofile ;
-    fi ;
     set +e ;

@@ -1,4 +1,4 @@
-// Copyright 2016-2017 The grok_exporter Authors
+// Copyright 2016-2020 The grok_exporter Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,18 +16,19 @@ package v2
 
 import (
 	"fmt"
+	"github.com/fstab/grok_exporter/tailer/glob"
+	"github.com/fstab/grok_exporter/template"
+	"gopkg.in/yaml.v2"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/fstab/grok_exporter/templates"
-	"gopkg.in/yaml.v2"
 )
 
 const (
 	defaultRetentionCheckInterval = 53 * time.Second
 	inputTypeStdin                = "stdin"
 	inputTypeFile                 = "file"
+	inputTypeWebhook              = "webhook"
 )
 
 func Unmarshal(config []byte) (*Config, error) {
@@ -58,13 +59,18 @@ type GlobalConfig struct {
 }
 
 type InputConfig struct {
-	Type                       string        `yaml:",omitempty"`
-	Path                       string        `yaml:",omitempty"`
+	Type                       string `yaml:",omitempty"`
+	PathsAndGlobs              `yaml:",inline"`
 	FailOnMissingLogfileString string        `yaml:"fail_on_missing_logfile,omitempty"` // cannot use bool directly, because yaml.v2 doesn't support true as default value.
 	FailOnMissingLogfile       bool          `yaml:"-"`
 	Readall                    bool          `yaml:",omitempty"`
 	PollIntervalSeconds        string        `yaml:"poll_interval_seconds,omitempty"` // TODO: Use time.Duration directly
 	PollInterval               time.Duration `yaml:"-"`                               // parsed version of PollIntervalSeconds
+	MaxLinesInBuffer           int           `yaml:"max_lines_in_buffer,omitempty"`
+	WebhookPath                string        `yaml:"webhook_path,omitempty"`
+	WebhookFormat              string        `yaml:"webhook_format,omitempty"`
+	WebhookJsonSelector        string        `yaml:"webhook_json_selector,omitempty"`
+	WebhookTextBulkSeparator   string        `yaml:"webhook_text_bulk_separator,omitempty"`
 }
 
 type GrokConfig struct {
@@ -72,22 +78,29 @@ type GrokConfig struct {
 	AdditionalPatterns []string `yaml:"additional_patterns,omitempty"`
 }
 
+type PathsAndGlobs struct {
+	Path  string      `yaml:",omitempty"`
+	Paths []string    `yaml:",omitempty"`
+	Globs []glob.Glob `yaml:"-"`
+}
+
 type MetricConfig struct {
-	Type                 string               `yaml:",omitempty"`
-	Name                 string               `yaml:",omitempty"`
-	Help                 string               `yaml:",omitempty"`
-	Match                string               `yaml:",omitempty"`
-	Retention            time.Duration        `yaml:",omitempty"` // implicitly parsed with time.ParseDuration()
-	Value                string               `yaml:",omitempty"`
-	Cumulative           bool                 `yaml:",omitempty"`
-	Buckets              []float64            `yaml:",flow,omitempty"`
-	Quantiles            map[float64]float64  `yaml:",flow,omitempty"`
-	Labels               map[string]string    `yaml:",omitempty"`
-	LabelTemplates       []templates.Template `yaml:"-"` // parsed version of Labels, will not be serialized to yaml.
-	ValueTemplate        templates.Template   `yaml:"-"` // parsed version of Value, will not be serialized to yaml.
-	DeleteMatch          string               `yaml:"delete_match,omitempty"`
-	DeleteLabels         map[string]string    `yaml:"delete_labels,omitempty"` // TODO: Make sure that DeleteMatch is not nil if DeleteLabels are used.
-	DeleteLabelTemplates []templates.Template `yaml:"-"`                       // parsed version of DeleteLabels, will not be serialized to yaml.
+	Type                 string `yaml:",omitempty"`
+	Name                 string `yaml:",omitempty"`
+	Help                 string `yaml:",omitempty"`
+	PathsAndGlobs        `yaml:",inline"`
+	Match                string              `yaml:",omitempty"`
+	Retention            time.Duration       `yaml:",omitempty"` // implicitly parsed with time.ParseDuration()
+	Value                string              `yaml:",omitempty"`
+	Cumulative           bool                `yaml:",omitempty"`
+	Buckets              []float64           `yaml:",flow,omitempty"`
+	Quantiles            map[float64]float64 `yaml:",flow,omitempty"`
+	Labels               map[string]string   `yaml:",omitempty"`
+	LabelTemplates       []template.Template `yaml:"-"` // parsed version of Labels, will not be serialized to yaml.
+	ValueTemplate        template.Template   `yaml:"-"` // parsed version of Value, will not be serialized to yaml.
+	DeleteMatch          string              `yaml:"delete_match,omitempty"`
+	DeleteLabels         map[string]string   `yaml:"delete_labels,omitempty"` // TODO: Make sure that DeleteMatch is not nil if DeleteLabels are used.
+	DeleteLabelTemplates []template.Template `yaml:"-"`                       // parsed version of DeleteLabels, will not be serialized to yaml.
 
 	/*************************pushgateway related config*****************************/
 	Push           bool                 `yaml:"push,omitempty"`             // if metric needs to be pushed
@@ -102,6 +115,7 @@ type ServerConfig struct {
 	Protocol string `yaml:",omitempty"`
 	Host     string `yaml:",omitempty"`
 	Port     int    `yaml:",omitempty"`
+	Path     string `yaml:",omitempty"`
 	Cert     string `yaml:",omitempty"`
 	Key      string `yaml:",omitempty"`
 }
@@ -136,6 +150,20 @@ func (c *InputConfig) addDefaults() {
 	if c.Type == inputTypeFile && len(c.FailOnMissingLogfileString) == 0 {
 		c.FailOnMissingLogfileString = "true"
 	}
+	if c.Type == inputTypeWebhook {
+		if len(c.WebhookPath) == 0 {
+			c.WebhookPath = "/webhook"
+		}
+		if len(c.WebhookFormat) == 0 {
+			c.WebhookFormat = "text_single"
+		}
+		if len(c.WebhookJsonSelector) == 0 {
+			c.WebhookJsonSelector = ".message"
+		}
+		if len(c.WebhookTextBulkSeparator) == 0 {
+			c.WebhookTextBulkSeparator = "\n\n"
+		}
+	}
 }
 
 func (c *GrokConfig) addDefaults() {}
@@ -148,6 +176,9 @@ func (c *ServerConfig) addDefaults() {
 	}
 	if c.Port == 0 {
 		c.Port = 9144
+	}
+	if c.Path == "" {
+		c.Path = "/metrics"
 	}
 }
 
@@ -177,16 +208,42 @@ func (cfg *Config) validate() error {
 	return nil
 }
 
-func (c *GlobalConfig) validate() error {
-    return nil
+func validateGlobs(p *PathsAndGlobs, optional bool, prefix string) error {
+	if !optional && len(p.Path) == 0 && len(p.Paths) == 0 {
+		return fmt.Errorf("%v: one of 'path' or 'paths' is required", prefix)
+	}
+	if len(p.Path) > 0 && len(p.Paths) > 0 {
+		return fmt.Errorf("%v: use either 'path' or 'paths' but not both", prefix)
+	}
+	if len(p.Path) > 0 {
+		parsedGlob, err := glob.Parse(p.Path)
+		if err != nil {
+			return fmt.Errorf("%v: %v", prefix, err)
+		}
+		p.Globs = []glob.Glob{parsedGlob}
+	}
+	if len(p.Paths) > 0 {
+		p.Globs = make([]glob.Glob, 0, len(p.Paths))
+		for _, path := range p.Paths {
+			parsedGlob, err := glob.Parse(path)
+			if err != nil {
+				return fmt.Errorf("%v: %v", prefix, err)
+			}
+			p.Globs = append(p.Globs, parsedGlob)
+		}
+	}
+	return nil
 }
 
 func (c *InputConfig) validate() error {
 	var err error
 	switch {
 	case c.Type == inputTypeStdin:
-		if c.Path != "" {
+		if len(c.Path) > 0 {
 			return fmt.Errorf("invalid input configuration: cannot use 'input.path' when 'input.type' is stdin")
+		}
+		if len(c.Paths) > 0 {
+			return fmt.Errorf("invalid input configuration: cannot use 'input.paths' when 'input.type' is stdin")
 		}
 		if c.Readall {
 			return fmt.Errorf("invalid input configuration: cannot use 'input.readall' when 'input.type' is stdin")
@@ -195,8 +252,9 @@ func (c *InputConfig) validate() error {
 			return fmt.Errorf("invalid input configuration: cannot use 'input.poll_interval_seconds' when 'input.type' is stdin")
 		}
 	case c.Type == inputTypeFile:
-		if c.Path == "" {
-			return fmt.Errorf("invalid input configuration: 'input.path' is required for input type \"file\"")
+		err = validateGlobs(&c.PathsAndGlobs, false, "invalid input configuration")
+		if err != nil {
+			return err
 		}
 		if len(c.PollIntervalSeconds) > 0 { // TODO: Use duration directly, as with other durations in the config file
 			nSeconds, err := strconv.Atoi(c.PollIntervalSeconds)
@@ -211,6 +269,35 @@ func (c *InputConfig) validate() error {
 				return fmt.Errorf("invalid input configuration: '%v' is not a valid boolean value in 'input.fail_on_missing_logfile'", c.FailOnMissingLogfileString)
 			}
 		}
+	case c.Type == inputTypeWebhook:
+		if c.Path != "" {
+			return fmt.Errorf("invalid input configuration: cannot use 'input.path' when 'input.type' is %v", inputTypeWebhook)
+		}
+		if len(c.Paths) > 0 {
+			return fmt.Errorf("invalid input configuration: cannot use 'input.paths' when 'input.type' is %v", inputTypeWebhook)
+		}
+		if c.Readall {
+			return fmt.Errorf("invalid input configuration: cannot use 'input.readall' when 'input.type' is %v", inputTypeWebhook)
+		}
+		if c.PollIntervalSeconds != "" {
+			return fmt.Errorf("invalid input configuration: cannot use 'input.poll_interval_seconds' when 'input.type' is %v", inputTypeWebhook)
+		}
+		if c.WebhookPath == "" {
+			return fmt.Errorf("invalid input configuration: 'input.webhook_path' is required for input type \"webhook\"")
+		} else if c.WebhookPath[0] != '/' {
+			return fmt.Errorf("invalid input configuration: 'input.webhook_path' must start with \"/\"")
+		}
+		if c.WebhookFormat != "text_single" && c.WebhookFormat != "text_bulk" && c.WebhookFormat != "json_single" && c.WebhookFormat != "json_bulk" {
+			return fmt.Errorf("invalid input configuration: 'input.webhook_format' must be \"text_single|text_bulk|json_single|json_bulk\"")
+		}
+		if c.WebhookJsonSelector == "" {
+			return fmt.Errorf("invalid input configuration: 'input.webhook_json_selector' is required for input type \"webhook\"")
+		} else if c.WebhookJsonSelector[0] != '.' {
+			return fmt.Errorf("invalid input configuration: 'input.webhook_json_selector' must start with \".\"")
+		}
+		if c.WebhookFormat == "text_bulk" && c.WebhookTextBulkSeparator == "" {
+			return fmt.Errorf("invalid input configuration: 'input.webhook_text_bulk_separator' is required for input type \"webhook\" and webhook_format \"text_bulk\"")
+		}
 	default:
 		return fmt.Errorf("unsupported 'input.type': %v", c.Type)
 	}
@@ -218,9 +305,6 @@ func (c *InputConfig) validate() error {
 }
 
 func (c *GrokConfig) validate() error {
-	if c.PatternsDir == "" && len(c.AdditionalPatterns) == 0 {
-		return fmt.Errorf("Invalid grok configuration: no patterns defined: one of 'grok.patterns_dir' and 'grok.additional_patterns' must be configured.")
-	}
 	return nil
 }
 
@@ -229,7 +313,8 @@ func (c *MetricsConfig) validate() error {
 		return fmt.Errorf("Invalid metrics configuration: 'metrics' must not be empty.")
 	}
 	metricNames := make(map[string]bool)
-	for _, metric := range *c {
+	for i := range *c {
+		metric := &(*c)[i] // validate modifies the metric, therefore we must use it by reference here.
 		err := metric.validate()
 		if err != nil {
 			return err
@@ -239,6 +324,14 @@ func (c *MetricsConfig) validate() error {
 			return fmt.Errorf("Invalid metric configuration: metric '%v' defined twice.", metric.Name)
 		}
 		metricNames[metric.Name] = true
+
+		if len(metric.Path) > 0 && len(metric.Paths) > 0 {
+			return fmt.Errorf("invalid metric configuration: metric %v defines both path and paths, you should use either one or the other", metric.Name)
+		}
+		if len(metric.Path) > 0 {
+			metric.Paths = []string{metric.Path}
+			metric.Path = ""
+		}
 	}
 	return nil
 }
@@ -253,6 +346,10 @@ func (c *MetricConfig) validate() error {
 		return fmt.Errorf("Invalid metric configuration: 'metrics.help' must not be empty.")
 	case c.Match == "":
 		return fmt.Errorf("Invalid metric configuration: 'metrics.match' must not be empty.")
+	}
+	err := validateGlobs(&c.PathsAndGlobs, true, fmt.Sprintf("invalid metric configuration: %v", c.Name))
+	if err != nil {
+		return err
 	}
 	var hasValue, cumulativeAllowed, bucketsAllowed, quantilesAllowed bool
 	switch c.Type {
@@ -323,6 +420,8 @@ func (c *ServerConfig) validate() error {
 		return fmt.Errorf("Invalid 'server.protocol': '%v'. Expecting 'http' or 'https'.", c.Protocol)
 	case c.Port <= 0:
 		return fmt.Errorf("Invalid 'server.port': '%v'.", c.Port)
+	case !strings.HasPrefix(c.Path, "/"):
+		return fmt.Errorf("Invalid server configuration: 'server.path' must start with '/'.")
 	case c.Protocol == "https":
 		if c.Cert != "" && c.Key == "" {
 			return fmt.Errorf("Invalid server configuration: 'server.cert' must not be specified without 'server.key'")
@@ -355,13 +454,13 @@ func AddDefaultsAndValidate(cfg *Config) error {
 func (metric *MetricConfig) InitTemplates() error {
 	var (
 		err   error
-		tmplt templates.Template
+		tmplt template.Template
 		msg   = "invalid configuration: failed to read metric %v: error parsing %v template: %v: " +
 			"don't forget to put a . (dot) in front of grok fields, otherwise it will be interpreted as a function."
 	)
 	for _, t := range []struct {
-		src  map[string]string     // label / template string as read from the config file
-		dest *[]templates.Template // parsed template used internally in grok_exporter
+		src  map[string]string    // label / template string as read from the config file
+		dest *[]template.Template // parsed template used internally in grok_exporter
 	}{
 		{
 			src:  metric.Labels,
@@ -376,9 +475,9 @@ func (metric *MetricConfig) InitTemplates() error {
 			dest: &(metric.GroupTemplates),
 		},
 	} {
-		*t.dest = make([]templates.Template, 0, len(t.src))
+		*t.dest = make([]template.Template, 0, len(t.src))
 		for name, templateString := range t.src {
-			tmplt, err = templates.New(name, templateString)
+			tmplt, err = template.New(name, templateString)
 			if err != nil {
 				return fmt.Errorf(msg, fmt.Sprintf("label %v", metric.Name), name, err.Error())
 			}
@@ -386,7 +485,7 @@ func (metric *MetricConfig) InitTemplates() error {
 		}
 	}
 	if len(metric.Value) > 0 {
-		metric.ValueTemplate, err = templates.New("__value__", metric.Value)
+		metric.ValueTemplate, err = template.New("__value__", metric.Value)
 		if err != nil {
 			return fmt.Errorf(msg, "value", metric.Name, err.Error())
 		}
@@ -402,6 +501,19 @@ func (cfg *Config) String() string {
 	}
 	if stripped.Input.FailOnMissingLogfileString == "true" {
 		stripped.Input.FailOnMissingLogfileString = ""
+	}
+	if stripped.Server.Path == "/metrics" {
+		stripped.Server.Path = ""
+	}
+	if len(stripped.Input.Paths) == 1 {
+		stripped.Input.Path = stripped.Input.Paths[0]
+		stripped.Input.Paths = nil
+	}
+	for i := range stripped.Metrics {
+		if len(stripped.Metrics[i].Paths) == 1 {
+			stripped.Metrics[i].Path = stripped.Metrics[i].Paths[i]
+			stripped.Metrics[i].Paths = nil
+		}
 	}
 	return stripped.marshalToString()
 }
