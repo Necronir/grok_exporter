@@ -236,13 +236,6 @@ func (m *observeMetricWithLabels) processMatch(line string, additionalFields map
 		if err != nil {
 			return nil, err
 		}
-		if match {
-			return &Match{
-				Value:  floatVal,
-				Labels: labels,
-			}, nil
-		}
-
 		// push metric
 		fmt.Print(fmt.Sprintf("[DEBUG] push flag for %v is %v\n", m.Name(), m.NeedPush()))
 		if m.NeedPush() {
@@ -257,10 +250,13 @@ func (m *observeMetricWithLabels) processMatch(line string, additionalFields map
 				return nil, fmt.Errorf("error getting grouping key %v", err.Error())
 			}
 		}
-		return &Match{
-			Value:  floatVal,
-			Labels: labels,
-		}, nil
+
+		if match {
+			return &Match{
+				Value:  floatVal,
+				Labels: labels,
+			}, nil
+		}
 	}
 	return nil, nil
 }

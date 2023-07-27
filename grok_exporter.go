@@ -187,7 +187,7 @@ func startMsg(cfg *v3.Config, httpHandlers []exporter.HttpServerPathHandler) str
 	var sb strings.Builder
 	baseUrl := fmt.Sprintf("%v://%v:%v", cfg.Server.Protocol, host, cfg.Server.Port)
 	sb.WriteString("Starting server on")
-	sb.WriteString(fmt.Sprintf(" %v%v", cfg.Global.PushgatewayAddr))
+	sb.WriteString(fmt.Sprintf(" %v", cfg.Global.PushgatewayAddr))
 	for _, httpHandler := range httpHandlers {
 		sb.WriteString(fmt.Sprintf(" %v%v", baseUrl, httpHandler.Path))
 	}
