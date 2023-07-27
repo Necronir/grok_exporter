@@ -15,9 +15,7 @@
 package exporter
 
 import (
-	"bytes"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -28,6 +26,7 @@ import (
 	"github.com/fstab/grok_exporter/tailer/glob"
 	"github.com/fstab/grok_exporter/template"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 )
@@ -458,6 +457,8 @@ func deleteMetric(m *metricWithLabels, groupingKey map[string]string) error {
 }
 
 func doRequest(job string, groupingKey map[string]string, targetUrl string, g prometheus.Gatherer, method string) error {
+
+	fmt.Errorf("JOB %s and labels: %s", job, groupingKey)
 	if !strings.Contains(targetUrl, "://") {
 		targetUrl = "http://" + targetUrl
 	}
@@ -481,40 +482,58 @@ func doRequest(job string, groupingKey map[string]string, targetUrl string, g pr
 
 	targetUrl = fmt.Sprintf("%s/metrics/job/%s", targetUrl, strings.Join(urlComponents, "/"))
 
-	buf := &bytes.Buffer{}
-	enc := expfmt.NewEncoder(buf, expfmt.FmtProtoDelim)
-	if g != nil {
-		mfs, err := g.Gather()
+	// Create a new pusher with the target URL of your Pushgateway.
+	pusher := push.New(targetUrl, job).Format(expfmt.FmtText)
+
+	// Add the collected metrics data to the pusher.
+	// The 'data' variable should be in Prometheus text format.
+	// Replace 'data' with your actual metrics data.
+	pusher.Add(&push.Job{
+		MetricFamily: groupingKey,
+	})
+	// Push the metrics to the Pushgateway.
+	err := pusher.Push()
+	if err != nil {
+		return fmt.Errorf("Error pushing metrics: %s with err: %s", groupingKey, err)
+	}
+	fmt.Println("Metrics pushed successfully.")
+
+	/*
+		buf := &bytes.Buffer{}
+		enc := expfmt.NewEncoder(buf, expfmt.FmtProtoDelim)
+		if g != nil {
+			mfs, err := g.Gather()
+			if err != nil {
+				return err
+			}
+			for _, mf := range mfs {
+				//ignore checking for pre-existing labels
+				enc.Encode(mf)
+			}
+		}
+
+		var request *http.Request
+		var err error
+		if method == "DELETE" {
+			request, err = http.NewRequest(method, targetUrl, nil)
+		} else {
+			request, err = http.NewRequest(method, targetUrl, buf)
+		}
+
 		if err != nil {
 			return err
 		}
-		for _, mf := range mfs {
-			//ignore checking for pre-existing labels
-			enc.Encode(mf)
+		request.Header.Set("Content-Type", string(expfmt.FmtProtoDelim))
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			return err
 		}
-	}
 
-	var request *http.Request
-	var err error
-	if method == "DELETE" {
-		request, err = http.NewRequest(method, targetUrl, nil)
-	} else {
-		request, err = http.NewRequest(method, targetUrl, buf)
-	}
-
-	if err != nil {
-		return err
-	}
-	request.Header.Set("Content-Type", string(expfmt.FmtProtoDelim))
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return err
-	}
-	fmt.Print(fmt.Sprintf("response code: %v, target url: %v\n", response.StatusCode, targetUrl))
-	defer response.Body.Close()
-	if response.StatusCode != 202 {
-		return fmt.Errorf("unexpected status code %d, method %s", response.StatusCode, method)
-	}
+		fmt.Print(fmt.Sprintf("response code: %v, target url: %v\n", response.StatusCode, targetUrl))
+		defer response.Body.Close()
+		if response.StatusCode != 202 {
+			return fmt.Errorf("unexpected status code %d, method %s", response.StatusCode, method)
+		}*/
 	return nil
 }
 
