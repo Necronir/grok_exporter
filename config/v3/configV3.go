@@ -91,6 +91,7 @@ type Config struct {
 type GlobalConfig struct {
 	ConfigVersion          int           `yaml:"config_version,omitempty"`
 	RetentionCheckInterval time.Duration `yaml:"retention_check_interval,omitempty"` // implicitly parsed with time.ParseDuration()
+	PushgatewayAddr        string        `yaml:"pushgateway_addr,omitempty"`         // pushgateway address
 }
 
 type InputConfig struct {
@@ -139,6 +140,9 @@ type MetricConfig struct {
 	DeleteMatch          string              `yaml:"delete_match,omitempty"`
 	DeleteLabels         map[string]string   `yaml:"delete_labels,omitempty"` // TODO: Make sure that DeleteMatch is not nil if DeleteLabels are used.
 	DeleteLabelTemplates []template.Template `yaml:"-"`                       // parsed version of DeleteLabels, will not be serialized to yaml.
+	/*************************pushgateway related config*****************************/
+	Push    bool   `yaml:"push,omitempty"`     // if metric needs to be pushed
+	JobName string `yaml:"job_name,omitempty"` // job name used as label when pushing metric
 }
 
 type MetricsConfig []MetricConfig

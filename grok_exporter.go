@@ -21,12 +21,8 @@ import (
 	"strings"
 	"time"
 
-	"net/http"
-	"os"
-	"time"
-
 	"github.com/fstab/grok_exporter/config"
-	"github.com/fstab/grok_exporter/config/v3"
+	v3 "github.com/fstab/grok_exporter/config/v3"
 	"github.com/fstab/grok_exporter/exporter"
 	"github.com/fstab/grok_exporter/oniguruma"
 	"github.com/fstab/grok_exporter/tailer"

@@ -16,6 +16,9 @@ package exporter
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
+
 	configuration "github.com/fstab/grok_exporter/config/v3"
 	"github.com/fstab/grok_exporter/oniguruma"
 	"github.com/fstab/grok_exporter/template"
@@ -48,14 +51,6 @@ func VerifyFieldNames(m *configuration.MetricConfig, regex, deleteRegex *oniguru
 		}
 	}
 
-	// verify grouping key, here grouping key needs to be one of the metric labels
-	// since delete_label is a subset of metric_label
-	for _, template := range m.GroupTemplates {
-		err := verifyFieldName(m.Name, template, regex)
-		if err != nil {
-			return err
-		}
-	}
 	if m.ValueTemplate != nil {
 		err := verifyFieldName(m.Name, m.ValueTemplate, regex, additionalFieldDefinitions)
 		if err != nil {

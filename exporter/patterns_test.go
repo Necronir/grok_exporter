@@ -15,11 +15,12 @@
 package exporter
 
 import (
-	"github.com/fstab/grok_exporter/oniguruma"
 	"os"
 	"path/filepath"
 	"regexp"
 	"testing"
+
+	"github.com/fstab/grok_exporter/oniguruma"
 )
 
 func TestDefaultPatternsLoadSuccessfully(t *testing.T) {
