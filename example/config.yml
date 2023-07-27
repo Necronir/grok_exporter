@@ -1,5 +1,7 @@
 global:
   config_version: 3
+  pushgateway_addr: http://127.0.0.1:8428/api/v1/import/prometheus
+  #"127.0.0.1:9091"
 input:
   type: file
   path: ./example/exim-rejected-RCPT-examples.log
@@ -11,12 +13,31 @@ grok_patterns:
 - 'EXIM_MESSAGE [a-zA-Z ]*'
 metrics:
 - type: counter
+  pushgateway: true
+  push: true
+  job_name: 'test_push'
   name: exim_rejected_rcpt_total
   help: Total number of rejected recipients, partitioned by error message.
   match: '%{EXIM_DATE} %{EXIM_REMOTE_HOST} F=<%{EMAILADDRESS}> rejected RCPT <%{EMAILADDRESS}>: %{EXIM_MESSAGE:message}'
+  grouping_key:
+    logfile: '{{base .logfile}}'
   labels:
     error_message: '{{.message}}'
     logfile: '{{base .logfile}}'
+- type: gauge
+  push: true
+  name: test_metric_gauge
+  help: metric value.
+  pushgateway: true
+  job_name: 'test_push'
+  delete_match: ''
+  match: '.*'
+  value: '1'
+  labels:
+    user: 'test'
+  grouping_key:
+    user: 'test'
+
 server:
   protocol: http
   port: 9144

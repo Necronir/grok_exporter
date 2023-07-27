@@ -1,0 +1,25 @@
+global:
+    config_version: 3
+    pushgateway_addr: "127.0.0.1:9091"
+input:
+    type: 'stdin'
+grok:
+   
+
+metrics:
+    - type: gauge
+      name: test_metric_gauge
+      help: metric value.
+      pushgateway: true
+      job_name: 'test_push'
+      delete_match: ''
+      match: '.*'
+      value: '1'
+      labels:
+          user: 'test'
+      grouping_key:
+          user: 'test'
+      
+          
+server:
+    port: 9144
