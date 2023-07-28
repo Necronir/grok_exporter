@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
-	v2 "github.com/fstab/grok_exporter/config/v2"
-	"github.com/fstab/grok_exporter/tailer/glob"
-	"github.com/fstab/grok_exporter/template"
+	v2 "github.com/Necronir/grok_exporter/config/v2"
+	"github.com/Necronir/grok_exporter/tailer/glob"
+	"github.com/Necronir/grok_exporter/template"
 	"gopkg.in/yaml.v2"
 )
 

@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
-	configuration "github.com/fstab/grok_exporter/config/v3"
-	"github.com/fstab/grok_exporter/oniguruma"
-	"github.com/fstab/grok_exporter/tailer/glob"
-	"github.com/fstab/grok_exporter/template"
+	configuration "github.com/Necronir/grok_exporter/config/v3"
+	"github.com/Necronir/grok_exporter/oniguruma"
+	"github.com/Necronir/grok_exporter/tailer/glob"
+	"github.com/Necronir/grok_exporter/template"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 )

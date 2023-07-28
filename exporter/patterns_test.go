@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/fstab/grok_exporter/oniguruma"
+	"github.com/Necronir/grok_exporter/oniguruma"
 )
 
 func TestDefaultPatternsLoadSuccessfully(t *testing.T) {
@@ -100,7 +100,7 @@ func matchFooBar(t *testing.T, input string) *oniguruma.SearchResult {
 	return searchResult
 }
 
-// The nginx example is taken from https://github.com/fstab/grok_exporter/issues/33
+// The nginx example is taken from https://github.com/Necronir/grok_exporter/issues/33
 func TestNginxExample(t *testing.T) {
 	p := loadPatternDir(t)
 	p.AddPattern("ERRORDATE %{YEAR}/%{MONTHNUM}/%{MONTHDAY} %{TIME}")

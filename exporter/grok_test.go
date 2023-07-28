@@ -15,8 +15,8 @@
 package exporter
 
 import (
-	configuration "github.com/fstab/grok_exporter/config/v3"
-	"github.com/fstab/grok_exporter/oniguruma"
+	configuration "github.com/Necronir/grok_exporter/config/v3"
+	"github.com/Necronir/grok_exporter/oniguruma"
 	"gopkg.in/yaml.v2"
 	"strings"
 	"testing"

@@ -19,9 +19,9 @@ import (
 	"regexp"
 	"strings"
 
-	configuration "github.com/fstab/grok_exporter/config/v3"
-	"github.com/fstab/grok_exporter/oniguruma"
-	"github.com/fstab/grok_exporter/template"
+	configuration "github.com/Necronir/grok_exporter/config/v3"
+	"github.com/Necronir/grok_exporter/oniguruma"
+	"github.com/Necronir/grok_exporter/template"
 )
 
 // Compile a grok pattern string into a regular expression.

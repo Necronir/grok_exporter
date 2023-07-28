@@ -16,7 +16,7 @@ package tailer
 
 import (
 	"fmt"
-	configuration "github.com/fstab/grok_exporter/config/v3"
+	configuration "github.com/Necronir/grok_exporter/config/v3"
 	"strings"
 	"testing"
 )
@@ -257,7 +257,7 @@ func TestWebhookJsonBulkNegativeMalformedJson(t *testing.T) {
 }
 
 func TestArraySelector(t *testing.T) {
-	// See https://github.com/fstab/grok_exporter/issues/93
+	// See https://github.com/Necronir/grok_exporter/issues/93
 	jsonString := `{
     "transaction": {
         "messages": [

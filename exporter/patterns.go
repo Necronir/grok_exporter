@@ -17,7 +17,7 @@ package exporter
 import (
 	"bufio"
 	"fmt"
-	"github.com/fstab/grok_exporter/tailer/glob"
+	"github.com/Necronir/grok_exporter/tailer/glob"
 	"io/ioutil"
 	"os"
 	"path/filepath"

@@ -16,8 +16,8 @@ package config
 
 import (
 	"fmt"
-	"github.com/fstab/grok_exporter/config/v2"
-	v3 "github.com/fstab/grok_exporter/config/v3"
+	"github.com/Necronir/grok_exporter/config/v2"
+	v3 "github.com/Necronir/grok_exporter/config/v3"
 	"io/ioutil"
 	"regexp"
 	"strconv"

@@ -16,7 +16,7 @@ package tailer
 
 import (
 	"container/list"
-	"github.com/fstab/grok_exporter/tailer/fswatcher"
+	"github.com/Necronir/grok_exporter/tailer/fswatcher"
 	"io"
 	logFatal "log"
 	"sync"

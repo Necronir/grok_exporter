@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fstab/grok_exporter/tailer/fswatcher"
+	"github.com/Necronir/grok_exporter/tailer/fswatcher"
 )
 
 // First produce 10,000 lines, then consume 10,000 lines.

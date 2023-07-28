@@ -15,8 +15,8 @@
 package exporter
 
 import (
-	configuration "github.com/fstab/grok_exporter/config/v3"
-	"github.com/fstab/grok_exporter/oniguruma"
+	configuration "github.com/Necronir/grok_exporter/config/v3"
+	"github.com/Necronir/grok_exporter/oniguruma"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_model/go"
 	"reflect"

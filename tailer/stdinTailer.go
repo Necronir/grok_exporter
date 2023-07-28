@@ -16,7 +16,7 @@ package tailer
 
 import (
 	"bufio"
-	"github.com/fstab/grok_exporter/tailer/fswatcher"
+	"github.com/Necronir/grok_exporter/tailer/fswatcher"
 	"os"
 	"strings"
 )

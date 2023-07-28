@@ -16,7 +16,7 @@ package tailer
 
 import (
 	"fmt"
-	"github.com/fstab/grok_exporter/tailer/fswatcher"
+	"github.com/Necronir/grok_exporter/tailer/fswatcher"
 	"github.com/sirupsen/logrus"
 	"math/rand"
 	"sync"
