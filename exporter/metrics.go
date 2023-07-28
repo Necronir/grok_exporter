@@ -16,6 +16,7 @@ package exporter
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -26,8 +27,6 @@ import (
 	"github.com/fstab/grok_exporter/tailer/glob"
 	"github.com/fstab/grok_exporter/template"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/push"
-	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 )
 
@@ -436,7 +435,7 @@ func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]st
 	if err := r.Register(collector); err != nil {
 		return err
 	}
-	err := doRequest(m.metric.JobName(), groupingKey, m.pushgatewayAddr, r, "POST")
+	err := doRequest(m.metric, groupingKey, m.pushgatewayAddr, r, "POST")
 	if err != nil {
 		return fmt.Errorf("Can not push metric %v to pushgateway: %v, error with: %v\n", m.Name(), m.pushgatewayAddr, err.Error())
 	}
@@ -453,11 +452,52 @@ func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]st
 }
 
 func deleteMetric(m *metricWithLabels, groupingKey map[string]string) error {
-	return doRequest(m.JobName(), groupingKey, m.pushgatewayAddr, nil, "DELETE")
+	return doRequest(m.metric, groupingKey, m.pushgatewayAddr, nil, "DELETE")
 }
 
-func doRequest(job string, groupingKey map[string]string, targetUrl string, g prometheus.Gatherer, method string) error {
+// formatLabels formats the metric labels in the Prometheus format.
+func formatLabels(labels map[string]string) string {
+	var labelPairs []string
+	for key, value := range labels {
+		labelPairs = append(labelPairs, fmt.Sprintf(`%s="%s"`, key, value))
+	}
+	return strings.Join(labelPairs, ", ")
+}
 
+// pushMetricToGateway sends the metric to the Pushgateway using an HTTP POST request.
+func pushMetricToGateway(method, url, metricStr string) error {
+	var req *http.Request
+	var err error
+	if method == "DELETE" {
+		req, err = http.NewRequest(method, url, nil)
+	} else {
+		req, err = http.NewRequest(method, url, strings.NewReader(metricStr))
+	}
+	if err != nil {
+		return err
+	}
+
+	// Set the Content-Type header to "text/plain" to indicate Prometheus text exposition format.
+	req.Header.Set("Content-Type", "text/plain")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g prometheus.Gatherer, method string) error {
+
+	job := metric.jobName
+	metricName := metric.name
 	fmt.Errorf("JOB %s and labels: %s", job, groupingKey)
 	if !strings.Contains(targetUrl, "://") {
 		targetUrl = "http://" + targetUrl
@@ -480,23 +520,17 @@ func doRequest(job string, groupingKey map[string]string, targetUrl string, g pr
 		urlComponents = append(urlComponents, ln, lv)
 	}
 
-	targetUrl = fmt.Sprintf("%s/metrics/job/%s", targetUrl, strings.Join(urlComponents, "/"))
+	metricStr := fmt.Sprintf("%s{%s} %d\n", metricName, formatLabels(groupingKey), "1")
 
-	// Create a new pusher with the target URL of your Pushgateway.
-	pusher := push.New(targetUrl, job).Format(expfmt.FmtText)
+	targetUrl = fmt.Sprintf("%s/metrics/job/%s", targetUrl, job)
+	//strings.Join(urlComponents, "/"))
 
-	// Add the collected metrics data to the pusher.
-	// The 'data' variable should be in Prometheus text format.
-	// Replace 'data' with your actual metrics data.
-	pusher.Add(&push.Job{
-		MetricFamily: groupingKey,
-	})
-	// Push the metrics to the Pushgateway.
-	err := pusher.Push()
+	fmt.Errorf("urlComponents %s", urlComponents)
+
+	err := pushMetricToGateway(method, targetUrl, metricStr)
 	if err != nil {
-		return fmt.Errorf("Error pushing metrics: %s with err: %s", groupingKey, err)
+		return err
 	}
-	fmt.Println("Metrics pushed successfully.")
 
 	/*
 		buf := &bytes.Buffer{}
@@ -511,7 +545,6 @@ func doRequest(job string, groupingKey map[string]string, targetUrl string, g pr
 				enc.Encode(mf)
 			}
 		}
-
 		var request *http.Request
 		var err error
 		if method == "DELETE" {
@@ -519,7 +552,6 @@ func doRequest(job string, groupingKey map[string]string, targetUrl string, g pr
 		} else {
 			request, err = http.NewRequest(method, targetUrl, buf)
 		}
-
 		if err != nil {
 			return err
 		}
@@ -528,7 +560,6 @@ func doRequest(job string, groupingKey map[string]string, targetUrl string, g pr
 		if err != nil {
 			return err
 		}
-
 		fmt.Print(fmt.Sprintf("response code: %v, target url: %v\n", response.StatusCode, targetUrl))
 		defer response.Body.Close()
 		if response.StatusCode != 202 {
