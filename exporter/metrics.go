@@ -485,6 +485,7 @@ func pushMetricToGateway(method, url, metricStr string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Print(fmt.Sprintf("response code: %v, target url: %v\n", resp.StatusCode, url))
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -498,7 +499,7 @@ func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g
 
 	job := metric.jobName
 	metricName := metric.name
-	fmt.Errorf("JOB %s and labels: %s", job, groupingKey)
+	fmt.Print(fmt.Sprintf("[DEBUG] JOB %v and labels: %v\n", job, groupingKey))
 	if !strings.Contains(targetUrl, "://") {
 		targetUrl = "http://" + targetUrl
 	}
@@ -519,6 +520,7 @@ func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g
 		}
 		urlComponents = append(urlComponents, ln, lv)
 	}
+	fmt.Print(fmt.Sprintf("[DEBUG] urlComponents: %v\n", urlComponents))
 
 	metricStr := fmt.Sprintf("%s{%s} %d\n", metricName, formatLabels(groupingKey), "1")
 
