@@ -240,6 +240,9 @@ func (m *observeMetricWithLabels) processMatch(line string, additionalFields map
 			groupingKey, err := labelValues(m.Name(), searchResult, m.deleteLabelTemplates, additionalFields)
 			if err == nil {
 				fmt.Print(fmt.Sprintf("[PUSH] Pushing metric %v\n", m.Name()))
+				for key, value := range groupingKey {
+					fmt.Printf("[DEBUG] groupingKey %s: %d\n", key, value)
+				}
 				e := pushMetric(m.metricWithLabels, vec, groupingKey, labels)
 				if e != nil {
 					fmt.Println(e.Error())
@@ -705,7 +708,7 @@ func labelValues(metricName string, searchResult *oniguruma.SearchResult, templa
 			fmt.Print(fmt.Errorf("error processing metric %v: %v", metricName, err.Error()))
 			return nil, fmt.Errorf("error processing metric %v: %v", metricName, err.Error())
 		}
-		fmt.Print(fmt.Sprintf("    [DEBUG] Process metric: %v->%v\n", t, value))
+		fmt.Print(fmt.Sprintf("    [DEBUG] Process metric: %v->%v\n", t.Name(), value))
 		result[t.Name()] = value
 	}
 	return result, nil
