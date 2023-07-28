@@ -238,7 +238,7 @@ func (m *observeMetricWithLabels) processMatch(line string, additionalFields map
 		// push metric
 		fmt.Print(fmt.Sprintf("[DEBUG] push flag for %v is %v\n", m.Name(), m.NeedPush()))
 		if m.NeedPush() {
-			groupingKey, err := labelValues(m.Name(), searchResult, m.deleteLabelTemplates, additionalFields)
+			groupingKey, err := labelValues(m.Name(), searchResult, m.groupingKeyTemplates, additionalFields)
 			if err == nil {
 				fmt.Print(fmt.Sprintf("[PUSH] Pushing metric %v\n", m.Name()))
 				for key, value := range groupingKey {
@@ -297,7 +297,7 @@ func (m *metricWithLabels) processDeleteMatch(line string, vec deleterMetric, ad
 		}
 		// delete metric from pushgateway first
 		if m.NeedPush() {
-			groupingKey, err := labelValues(m.Name(), searchResult, m.deleteLabelTemplates, additionalFields)
+			groupingKey, err := labelValues(m.Name(), searchResult, m.groupingKeyTemplates, additionalFields)
 			if err == nil {
 				fmt.Println(fmt.Sprintf("deleting metric: %v from pushgateway\n", m.Name()))
 				e := deleteMetric(m, groupingKey)
