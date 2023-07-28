@@ -697,6 +697,7 @@ func labelValues(metricName string, searchResult *oniguruma.SearchResult, templa
 	for _, t := range templates {
 		value, err := evalTemplate(searchResult, t, additionalFields)
 		if err != nil {
+			fmt.Print(fmt.Errorf("error processing metric %v: %v", metricName, err.Error()))
 			return nil, fmt.Errorf("error processing metric %v: %v", metricName, err.Error())
 		}
 		fmt.Print(fmt.Sprintf("    [DEBUG] Process metric: %v->%v\n", t, value))
