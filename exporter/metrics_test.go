@@ -169,7 +169,7 @@ func TestGauge(t *testing.T) {
 		Name:  "temperature",
 		Value: "{{.temperature}}",
 	})
-	gauge := NewGaugeMetric(gaugeCfg, regex, nil)
+	gauge := NewGaugeMetric(gaugeCfg, &configuration.GlobalConfig{}, regex, nil)
 
 	gauge.ProcessMatch("Temperature in Berlin: 32", nil)
 	gauge.ProcessMatch("Temperature in Moscow: -5", nil)
@@ -193,7 +193,7 @@ func TestGaugeCumulative(t *testing.T) {
 		Value:      "{{.rainfall}}",
 		Cumulative: true,
 	})
-	gauge := NewGaugeMetric(gaugeCfg, regex, nil)
+	gauge := NewGaugeMetric(gaugeCfg, &configuration.GlobalConfig{}, regex, nil)
 
 	gauge.ProcessMatch("Rainfall in Berlin: 32", nil)
 	gauge.ProcessMatch("Rainfall in Moscow: 5", nil)
@@ -219,7 +219,7 @@ func TestGaugeVec(t *testing.T) {
 			"city": "{{.city}}",
 		},
 	})
-	gauge := NewGaugeMetric(gaugeCfg, regex, nil)
+	gauge := NewGaugeMetric(gaugeCfg, &configuration.GlobalConfig{}, regex, nil)
 
 	gauge.ProcessMatch("Temperature in Berlin: 32", nil)
 	gauge.ProcessMatch("Temperature in Moscow: -5", nil)
