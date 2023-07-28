@@ -518,11 +518,14 @@ func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g
 		if strings.Contains(lv, "/") {
 			return fmt.Errorf("value of groupingKey label %s contains '/': %s", ln, lv)
 		}
+		fmt.Print(fmt.Sprintf("    [DEBUG] Process label: %v->%v\n", ln, lv))
 		urlComponents = append(urlComponents, ln, lv)
 	}
 	fmt.Print(fmt.Sprintf("[DEBUG] urlComponents: %v\n", strings.Join(urlComponents, "/")))
 
 	metricStr := fmt.Sprintf("%s{%s} %d\n", metricName, formatLabels(groupingKey), "1")
+
+	fmt.Print(fmt.Sprintf("[DEBUG] metricStr: %v\n", metricStr))
 
 	targetUrl = fmt.Sprintf("%s/metrics/job/%s", targetUrl, job)
 	//strings.Join(urlComponents, "/"))
