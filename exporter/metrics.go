@@ -520,7 +520,7 @@ func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g
 		}
 		urlComponents = append(urlComponents, ln, lv)
 	}
-	fmt.Print(fmt.Sprintf("[DEBUG] urlComponents: %v\n", urlComponents))
+	fmt.Print(fmt.Sprintf("[DEBUG] urlComponents: %v\n", strings.Join(urlComponents, "/")))
 
 	metricStr := fmt.Sprintf("%s{%s} %d\n", metricName, formatLabels(groupingKey), "1")
 
