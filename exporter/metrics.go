@@ -523,7 +523,7 @@ func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g
 	}
 	fmt.Print(fmt.Sprintf("[DEBUG] urlComponents: %v\n", strings.Join(urlComponents, "/")))
 
-	metricStr := fmt.Sprintf("%s{%s} %d\n", metricName, formatLabels(groupingKey), "1")
+	metricStr := fmt.Sprintf("%v{%v} %v\n", metricName, formatLabels(groupingKey), "1")
 
 	fmt.Print(fmt.Sprintf("[DEBUG] metricStr: %v\n", metricStr))
 
@@ -699,6 +699,7 @@ func labelValues(metricName string, searchResult *oniguruma.SearchResult, templa
 		if err != nil {
 			return nil, fmt.Errorf("error processing metric %v: %v", metricName, err.Error())
 		}
+		fmt.Print(fmt.Sprintf("    [DEBUG] Process metric: %v->%v\n", t, value))
 		result[t.Name()] = value
 	}
 	return result, nil
