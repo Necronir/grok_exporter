@@ -1,4 +1,4 @@
-module github.com/fstab/grok_exporter
+module github.com/Necronir/grok_exporter
 
 require (
 	github.com/Shopify/sarama v1.27.0
