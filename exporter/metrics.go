@@ -73,6 +73,7 @@ type metricWithLabels struct {
 	metric
 	labelTemplates       []template.Template
 	deleteLabelTemplates []template.Template
+	groupingKeyTemplates []template.Template
 	labelValueTracker    LabelValueTracker
 }
 
@@ -599,6 +600,7 @@ func newMetricWithLabels(cfg *configuration.MetricConfig, globalConfig *configur
 		metric:               newMetric(cfg, globalConfig, regex, deleteRegex),
 		labelTemplates:       cfg.LabelTemplates,
 		deleteLabelTemplates: cfg.DeleteLabelTemplates,
+		groupingKeyTemplates: cfg.GroupTemplates,
 		labelValueTracker:    NewLabelValueTracker(prometheusLabels(cfg.LabelTemplates)),
 	}
 }

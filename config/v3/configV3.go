@@ -141,8 +141,10 @@ type MetricConfig struct {
 	DeleteLabels         map[string]string   `yaml:"delete_labels,omitempty"` // TODO: Make sure that DeleteMatch is not nil if DeleteLabels are used.
 	DeleteLabelTemplates []template.Template `yaml:"-"`                       // parsed version of DeleteLabels, will not be serialized to yaml.
 	/*************************pushgateway related config*****************************/
-	Push    bool   `yaml:"push,omitempty"`     // if metric needs to be pushed
-	JobName string `yaml:"job_name,omitempty"` // job name used as label when pushing metric
+	Push           bool                `yaml:"push,omitempty"`         // if metric needs to be pushed
+	JobName        string              `yaml:"job_name,omitempty"`     // job name used as label when pushing metric
+	GroupingKey    map[string]string   `yaml:"grouping_key,omitempty"` // grouping key used when pushing metric
+	GroupTemplates []template.Template `yaml:"-"`
 }
 
 type MetricsConfig []MetricConfig
@@ -594,6 +596,20 @@ func (c *MetricConfig) validate() error {
 			return fmt.Errorf("Invalid metric configuration: '%v' cannot be used as a delete_label, because the metric does not have a label named '%v'.", deleteLabelTemplate.Name(), deleteLabelTemplate.Name())
 		}
 	}
+
+	for _, groupingKeyTemplate := range c.GroupTemplates {
+		found := false
+		for _, labelTemplate := range c.LabelTemplates {
+			if groupingKeyTemplate.Name() == labelTemplate.Name() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("Invalid metric configuration: '%v' cannot be used as a grouping_key, because the metric does not have a label named '%v'.", groupingKeyTemplate.Name(), groupingKeyTemplate.Name())
+		}
+	}
+
 	// InitTemplates() validates that labels/delete_labels/value are present as grok_fields in the grok pattern.
 	return nil
 }
@@ -676,6 +692,10 @@ func (metric *MetricConfig) InitTemplates() error {
 		{
 			src:  metric.DeleteLabels,
 			dest: &(metric.DeleteLabelTemplates),
+		},
+		{
+			src:  metric.GroupingKey,
+			dest: &(metric.GroupTemplates),
 		},
 	} {
 		*t.dest = make([]template.Template, 0, len(t.src))
