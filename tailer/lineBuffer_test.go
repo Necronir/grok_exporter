@@ -16,11 +16,12 @@ package tailer
 
 import (
 	"fmt"
-	"github.com/fstab/grok_exporter/tailer/fswatcher"
 	"math/rand"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/fstab/grok_exporter/tailer/fswatcher"
 )
 
 // First produce 10,000 lines, then consume 10,000 lines.
@@ -92,7 +93,7 @@ func TestLineBufferClear(t *testing.T) {
 		}
 		buf.Clear()
 		if buf.Len() != 0 {
-			t.Fatalf("Expected %v lines in buffer, but got %v", 0, buf.Len())
+			t.Errorf("Expected %v lines in buffer, but got %v", 0, buf.Len())
 		}
 	}
 }
@@ -103,13 +104,13 @@ func TestLineBufferBlockingPop(t *testing.T) {
 	go func() {
 		l := buf.BlockingPop()
 		if l.Line != "hello" {
-			t.Fatalf("expected to read \"hello\" but got %q.", l.Line)
+			t.Errorf("expected to read \"hello\" but got %q.", l.Line)
 		}
 		close(done)
 	}()
 	select {
 	case <-done:
-		t.Fatal("BlockingPop() returned unexpectedly")
+		t.Error("BlockingPop() returned unexpectedly")
 	case <-time.After(200 * time.Millisecond):
 		// ok
 	}
@@ -118,7 +119,7 @@ func TestLineBufferBlockingPop(t *testing.T) {
 	case <-done:
 		// ok
 	case <-time.After(200 * time.Millisecond):
-		t.Fatal("BlockingPop() not interrupted by Close()")
+		t.Error("BlockingPop() not interrupted by Close()")
 	}
 }
 
