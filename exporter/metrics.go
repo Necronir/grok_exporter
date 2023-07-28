@@ -241,9 +241,6 @@ func (m *observeMetricWithLabels) processMatch(line string, additionalFields map
 			groupingKey, err := labelValues(m.Name(), searchResult, m.groupingKeyTemplates, additionalFields)
 			if err == nil {
 				fmt.Print(fmt.Sprintf("[PUSH] Pushing metric %v\n", m.Name()))
-				for key, value := range groupingKey {
-					fmt.Printf("[DEBUG] groupingKey %s: %d\n", key, value)
-				}
 				e := pushMetric(m.metricWithLabels, vec, groupingKey, labels)
 				if e != nil {
 					fmt.Println(e.Error())
@@ -516,10 +513,6 @@ func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g
 	}
 	urlComponents := []string{url.QueryEscape(job)}
 
-	for key, value := range groupingKey {
-		fmt.Printf("[DEBUG] groupingKey %s: %d\n", key, value)
-	}
-
 	for ln, lv := range groupingKey {
 		if !model.LabelName(ln).IsValid() {
 			return fmt.Errorf("groupingKey label has invalid name: %s", ln)
@@ -530,17 +523,9 @@ func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g
 		fmt.Print(fmt.Sprintf("    [DEBUG] Process label: %v->%v\n", ln, lv))
 		urlComponents = append(urlComponents, ln, lv)
 	}
-	fmt.Print(fmt.Sprintf("[DEBUG] urlComponents: %v\n", strings.Join(urlComponents, "/")))
 
 	metricStr := fmt.Sprintf("%v{%v} %v\n", metricName, formatLabels(groupingKey), "1")
-
-	fmt.Print(fmt.Sprintf("[DEBUG] metricStr: %v\n", metricStr))
-
 	targetUrl = fmt.Sprintf("%s/metrics/job/%s", targetUrl, job)
-	//strings.Join(urlComponents, "/"))
-
-	fmt.Errorf("urlComponents %s", urlComponents)
-
 	err := pushMetricToGateway(method, targetUrl, metricStr)
 	if err != nil {
 		return err
