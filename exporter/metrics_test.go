@@ -15,12 +15,13 @@
 package exporter
 
 import (
+	"reflect"
+	"testing"
+
 	configuration "github.com/Necronir/grok_exporter/config/v3"
 	"github.com/Necronir/grok_exporter/oniguruma"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_model/go"
-	"reflect"
-	"testing"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 )
 
 func TestCounterVec(t *testing.T) {
@@ -31,7 +32,7 @@ func TestCounterVec(t *testing.T) {
 			"error_message": "{{.message}}",
 		},
 	})
-	counter := NewCounterMetric(counterCfg, regex, nil)
+	counter := NewCounterMetric(counterCfg, &configuration.GlobalConfig{}, regex, nil)
 	counter.ProcessMatch("some unrelated line", nil)
 	counter.ProcessMatch("2016-04-26 10:19:57 H=(85.214.241.101) [36.224.138.227] F=<z2007tw@yahoo.com.tw> rejected RCPT <alan.a168@msa.hinet.net>: relay not permitted", nil)
 	counter.ProcessMatch("2016-04-26 12:31:39 H=(186-90-8-31.genericrev.cantv.net) [186.90.8.31] F=<Hans.Krause9@cantv.net> rejected RCPT <ug2seeng-admin@example.com>: Unrouteable address", nil)
@@ -58,7 +59,7 @@ func TestCounter(t *testing.T) {
 	counterCfg := newMetricConfig(t, &configuration.MetricConfig{
 		Name: "exim_rejected_rcpt_total",
 	})
-	counter := NewCounterMetric(counterCfg, regex, nil)
+	counter := NewCounterMetric(counterCfg, &configuration.GlobalConfig{}, regex, nil)
 
 	counter.ProcessMatch("some unrelated line", nil)
 	counter.ProcessMatch("2016-04-26 10:19:57 H=(85.214.241.101) [36.224.138.227] F=<z2007tw@yahoo.com.tw> rejected RCPT <alan.a168@msa.hinet.net>: relay not permitted", nil)
@@ -83,7 +84,7 @@ func TestCounterValue(t *testing.T) {
 		Name:  "rainfall",
 		Value: "{{.rainfall}}",
 	})
-	counter := NewCounterMetric(counterCfg, regex, nil)
+	counter := NewCounterMetric(counterCfg, &configuration.GlobalConfig{}, regex, nil)
 
 	counter.ProcessMatch("Rainfall in Berlin: 32", nil)
 	counter.ProcessMatch("Rainfall in Berlin: 5", nil)
@@ -115,7 +116,7 @@ func TestLogfileLabel(t *testing.T) {
 	logfile2 := map[string]interface{}{
 		"logfile": "/var/log/exim-2.log",
 	}
-	counter := NewCounterMetric(counterCfg, regex, nil)
+	counter := NewCounterMetric(counterCfg, &configuration.GlobalConfig{}, regex, nil)
 	counter.ProcessMatch("2016-04-26 10:19:57 H=(85.214.241.101) [36.224.138.227] F=<z2007tw@yahoo.com.tw> rejected RCPT <alan.a168@msa.hinet.net>: relay not permitted", logfile1)
 	counter.ProcessMatch("2016-04-26 12:31:39 H=(186-90-8-31.genericrev.cantv.net) [186.90.8.31] F=<Hans.Krause9@cantv.net> rejected RCPT <ug2seeng-admin@example.com>: Unrouteable address", logfile1)
 	counter.ProcessMatch("2016-04-26 10:19:57 H=(85.214.241.101) [36.224.138.227] F=<z2007tw@yahoo.com.tw> rejected RCPT <alan.a168@msa.hinet.net>: relay not permitted", logfile2)
