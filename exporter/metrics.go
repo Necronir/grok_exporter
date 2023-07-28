@@ -511,6 +511,11 @@ func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g
 		return fmt.Errorf("job contains '/' : %s", job)
 	}
 	urlComponents := []string{url.QueryEscape(job)}
+
+	for key, value := range groupingKey {
+		fmt.Printf("[DEBUG] groupingKey %s: %d\n", key, value)
+	}
+
 	for ln, lv := range groupingKey {
 		if !model.LabelName(ln).IsValid() {
 			return fmt.Errorf("groupingKey label has invalid name: %s", ln)
