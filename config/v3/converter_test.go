@@ -26,13 +26,11 @@ const empty_v2 = ``
 const empty_v3 = `
 global:
     config_version: 3
-    pushgateway_addr: localhost:9091
 `
 
 const full_v2 = `
 global:
     config_version: 2
-    pushgateway_addr: localhost:9091
     retention_check_interval: 3s
 input:
     type: file
@@ -89,7 +87,6 @@ server:
 const full_v3 = `
 global:
     config_version: 3
-    pushgateway_addr: localhost:9091
     retention_check_interval: 3s
 input:
     type: file
