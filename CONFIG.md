@@ -133,7 +133,7 @@ file input is based on the operating system's file system notification mechanism
 soon as a new log line is written to the log file, and let `grok_exporter` sleep as long as the log file doesn't
 change. There is no need for configuring a poll interval. However, there is one combination where the above
 notifications don't work: If the logging application keeps the logfile open and the underlying file system is NTFS
-(see [#17](https://github.com/Necronir/grok_exporter/issues/17)). For this specific case you can configure a
+(see [#17](https://github.com/fstab/grok_exporter/issues/17)). For this specific case you can configure a
 `poll_interval`. This will disable file system notifications and instead check the log file periodically.
 The format is described in [How to Configure Durations] below.
 
@@ -269,7 +269,7 @@ The `dir` is a directory, all files in that directory will be imported.
 
 ### grok_patterns import type
 
-The [grok_exporter releases](https://github.com/Necronir/grok_exporter/releases) contain a `patterns/` directory with the pre-defined grok patterns from [github.com/logstash-patterns-core].
+The [grok_exporter releases](https://github.com/fstab/grok_exporter/releases) contain a `patterns/` directory with the pre-defined grok patterns from [github.com/logstash-patterns-core].
 If you want to use them, configure an import for this directory. See the [grok_patterns Section] below for more information on the `grok_patterns`.
 
 ### metrics import type
@@ -449,11 +449,11 @@ The following examples show how to use these fields as label values using the [G
 * `'{{base .logfile}}'` -> `example.log`
 * `'{{gsub .logfile "/tmp/" ""}}` -> `example/example.log`
 
-The syntax of the `gsub` function is `{{gsub input pattern replacement}}`. The pattern and replacement are is similar to [Elastic's mutate filter's gsub] (derived from Ruby's [String.gsub()]), except that you need to double-escape backslashes (\\\\ instead of \\). A more complex example (including capture groups) can be found in [this comment](https://github.com/Necronir/grok_exporter/issues/36#issuecomment-397094266).
+The syntax of the `gsub` function is `{{gsub input pattern replacement}}`. The pattern and replacement are is similar to [Elastic's mutate filter's gsub] (derived from Ruby's [String.gsub()]), except that you need to double-escape backslashes (\\\\ instead of \\). A more complex example (including capture groups) can be found in [this comment](https://github.com/fstab/grok_exporter/issues/36#issuecomment-397094266).
 
 The arithmetic functions `add`, `subtract`, `multiply`, and `divide` are straightforward. These functions may not be useful for label values, but they can be useful as the `value:` in [gauge](#gauge-metric-type), [histogram](#histogram-metric-type), or [summary](#summary-metric-type) metrics. For example, they could be used to convert milliseconds to seconds.
 
-Conditionals like `'{{if eq .user "alice"}}1{{else}}0{{end}}` are described in the [Go template] documentation. For example, they can be used to define boolean metrics, i.e. [gauge](#gauge-metric-type) metrics with a value of `1` or `0`. Another example can be found in [this comment](https://github.com/Necronir/grok_exporter/issues/36#issuecomment-431605857).
+Conditionals like `'{{if eq .user "alice"}}1{{else}}0{{end}}` are described in the [Go template] documentation. For example, they can be used to define boolean metrics, i.e. [gauge](#gauge-metric-type) metrics with a value of `1` or `0`. Another example can be found in [this comment](https://github.com/fstab/grok_exporter/issues/36#issuecomment-431605857).
 
 The `base` function is like Golang's [path.Base()](https://golang.org/pkg/path/#Base). If you want something other than either the full path or the file name, use `gsub`.
 
@@ -751,7 +751,7 @@ How to Configure Durations
 [gauge metric]: https://prometheus.io/docs/concepts/metric_types/#gauge
 [summary metric]: https://prometheus.io/docs/concepts/metric_types/#summary
 [histogram metric]: https://prometheus.io/docs/concepts/metric_types/#histogram
-[release]: https://github.com/Necronir/grok_exporter/releases
+[release]: https://github.com/fstab/grok_exporter/releases
 [Prometheus metric types]: https://prometheus.io/docs/concepts/metric_types
 [Grok documentation]: https://www.elastic.co/guide/en/logstash/current/plugins-filters-grok.html
 [histograms and summaries]: https://prometheus.io/docs/practices/histograms/

@@ -30,9 +30,9 @@ However, if Windows tests fail it is sometimes useful to reproduce this locally 
     make
     make install
     ```
-  * Clone `grok_exporter` from [https://github.com/Necronir/grok_exporter](https://github.com/Necronir/grok_exporter). Build and run it as follows:
+  * Clone `grok_exporter` from [https://github.com/fstab/grok_exporter](https://github.com/fstab/grok_exporter). Build and run it as follows:
     ```
-    git clone https://github.com/Necronir/grok_exporter.git
+    git clone https://github.com/fstab/grok_exporter.git
     cd grok_exporter
     git submodule update --init --recursive
     alias go=/C/Go/bin/go

@@ -21,15 +21,15 @@ export GO111MODULE=on
 # The Darwin release is built natively, Linux and Windows are built in a Docker container
 #========================================================================================
 
-cd ${GOPATH:=$HOME/go}/src/github.com/Necronir/grok_exporter
+cd ${GOPATH:=$HOME/go}/src/github.com/fstab/grok_exporter
 
 export VERSION=1.0.0-SNAPSHOT
 
 export VERSION_FLAGS="\
-        -X github.com/Necronir/grok_exporter/exporter.Version=$VERSION
-        -X github.com/Necronir/grok_exporter/exporter.BuildDate=$(date +%Y-%m-%d)
-        -X github.com/Necronir/grok_exporter/exporter.Branch=$(git rev-parse --abbrev-ref HEAD)
-        -X github.com/Necronir/grok_exporter/exporter.Revision=$(git rev-parse --short HEAD)
+        -X github.com/fstab/grok_exporter/exporter.Version=$VERSION
+        -X github.com/fstab/grok_exporter/exporter.BuildDate=$(date +%Y-%m-%d)
+        -X github.com/fstab/grok_exporter/exporter.Branch=$(git rev-parse --abbrev-ref HEAD)
+        -X github.com/fstab/grok_exporter/exporter.Revision=$(git rev-parse --short HEAD)
 "
 
 #--------------------------------------------------------------
@@ -78,7 +78,7 @@ function create_zip_file {
 
 function run_docker_linux_amd64 {
     docker run \
-        -v $GOPATH/src/github.com/Necronir/grok_exporter:/go/src/github.com/Necronir/grok_exporter \
+        -v $GOPATH/src/github.com/fstab/grok_exporter:/go/src/github.com/fstab/grok_exporter \
         --net none \
         --user $(id -u):$(id -g) \
         --rm -ti "fstab/grok_exporter-compiler-amd64:v$VERSION" \
@@ -87,7 +87,7 @@ function run_docker_linux_amd64 {
 
 function run_docker_windows_amd64 {
     docker run \
-        -v $GOPATH/src/github.com/Necronir/grok_exporter:/go/src/github.com/Necronir/grok_exporter \
+        -v $GOPATH/src/github.com/fstab/grok_exporter:/go/src/github.com/fstab/grok_exporter \
         --net none \
         --user $(id -u):$(id -g) \
         --rm -ti "fstab/grok_exporter-compiler-amd64:v$VERSION" \
@@ -96,7 +96,7 @@ function run_docker_windows_amd64 {
 
 function run_docker_linux_arm64v8 {
     docker run \
-        -v $GOPATH/src/github.com/Necronir/grok_exporter:/go/src/github.com/Necronir/grok_exporter \
+        -v $GOPATH/src/github.com/fstab/grok_exporter:/go/src/github.com/fstab/grok_exporter \
         --net none \
         --user $(id -u):$(id -g) \
         --rm -ti "fstab/grok_exporter-compiler-arm64v8:v$VERSION" \
@@ -105,7 +105,7 @@ function run_docker_linux_arm64v8 {
 
 function run_docker_linux_arm32v6 {
     docker run \
-        -v $GOPATH/src/github.com/Necronir/grok_exporter:/go/src/github.com/Necronir/grok_exporter \
+        -v $GOPATH/src/github.com/fstab/grok_exporter:/go/src/github.com/fstab/grok_exporter \
         --net none \
         --user $(id -u):$(id -g) \
         --rm -ti "fstab/grok_exporter-compiler-arm32v6:v$VERSION" \

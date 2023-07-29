@@ -92,7 +92,7 @@ make install
 **Installing grok_exporter**
 
 ```bash
-git clone https://github.com/Necronir/grok_exporter
+git clone https://github.com/fstab/grok_exporter
 cd grok_exporter
 git submodule update --init --recursive
 go install .
@@ -112,8 +112,8 @@ User documentation is included in the [GitHub repository]:
 
 Developer notes are available on the [GitHub Wiki pages]:
 
-* [tailer (tail -f)](https://github.com/Necronir/grok_exporter/wiki/tailer-(tail-%E2%80%90f))
-* [About the Regular Expression Library](https://github.com/Necronir/grok_exporter/wiki/About-the-Regular-Expression-Library)
+* [tailer (tail -f)](https://github.com/fstab/grok_exporter/wiki/tailer-(tail-%E2%80%90f))
+* [About the Regular Expression Library](https://github.com/fstab/grok_exporter/wiki/About-the-Regular-Expression-Library)
 
 External documentation:
 
@@ -149,7 +149,7 @@ You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-
 [gcc]: https://gcc.gnu.org/
 [Oniguruma]: https://github.com/kkos/oniguruma
 [screenshot.png]: screenshot.png
-[releases]: https://github.com/Necronir/grok_exporter/releases
+[releases]: https://github.com/fstab/grok_exporter/releases
 [http://localhost:9144/metrics]: http://localhost:9144/metrics
 [CONFIG.md]: CONFIG.md
 [BUILTIN.md]: BUILTIN.md
@@ -161,11 +161,11 @@ You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-
 [libpcre]: http://www.pcre.org
 [rubex]: https://github.com/moovweb/rubex
 [http://www.apache.org/licenses/LICENSE-2.0]: http://www.apache.org/licenses/LICENSE-2.0
-[more CPU efficient]: https://github.com/Necronir/grok_exporter/wiki/About-the-Regular-Expression-Library
+[more CPU efficient]: https://github.com/fstab/grok_exporter/wiki/About-the-Regular-Expression-Library
 [fsnotify]: https://github.com/fsnotify/fsnotify
-[might be an obstacle]: https://github.com/Necronir/grok_exporter/wiki/tailer-(tail-%E2%80%90f)
-[GitHub Wiki pages]: https://github.com/Necronir/grok_exporter/wiki
-[GitHub repository]: https://github.com/Necronir/grok_exporter
+[might be an obstacle]: https://github.com/fstab/grok_exporter/wiki/tailer-(tail-%E2%80%90f)
+[GitHub Wiki pages]: https://github.com/fstab/grok_exporter/wiki
+[GitHub repository]: https://github.com/fstab/grok_exporter
 [Counter]: https://prometheus.io/docs/concepts/metric_types/#counter
 [Gauge]: https://prometheus.io/docs/concepts/metric_types/#gauge
 [Histogram]: https://prometheus.io/docs/concepts/metric_types/#histogram
