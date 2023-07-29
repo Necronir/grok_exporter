@@ -63,14 +63,14 @@ use the wrong file as command line parameter
 `
 
 func TestVersionOk(t *testing.T) {
-	expectVersion(t, "config_version: 1", 1, false, false)
-	expectVersion(t, "config_version: 2", 2, true, false)
-	expectVersion(t, "config_version: 3", 3, false, false)
+	expectVersion(t, "config_version: 1\n     pushgateway_addr: localhost:9091", 1, false, false)
+	expectVersion(t, "config_version: 2\n     pushgateway_addr: localhost:9091", 2, true, false)
+	expectVersion(t, "config_version: 3\n     pushgateway_addr: localhost:9091", 3, false, false)
 }
 
 func TestVersionInvalid(t *testing.T) {
-	expectVersion(t, "config_version: a", 0, false, true)
-	expectVersion(t, "config_version", 0, false, true)
+	expectVersion(t, "config_version: a\n     pushgateway_addr: localhost:9091", 0, false, true)
+	expectVersion(t, "config_version\n     pushgateway_addr: localhost:9091", 0, false, true)
 }
 
 func TestVersionGlobalMissing(t *testing.T) {
