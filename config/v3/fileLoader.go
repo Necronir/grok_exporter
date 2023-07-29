@@ -16,9 +16,10 @@ package v3
 
 import (
 	"fmt"
-	"github.com/Necronir/grok_exporter/tailer/glob"
 	"io/ioutil"
 	"path/filepath"
+
+	"github.com/fstab/grok_exporter/tailer/glob"
 )
 
 type ConfigFile struct {

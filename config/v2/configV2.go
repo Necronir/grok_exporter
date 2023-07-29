@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Necronir/grok_exporter/tailer/glob"
-	"github.com/Necronir/grok_exporter/template"
+	"github.com/fstab/grok_exporter/tailer/glob"
+	"github.com/fstab/grok_exporter/template"
 	"gopkg.in/yaml.v2"
 )
 

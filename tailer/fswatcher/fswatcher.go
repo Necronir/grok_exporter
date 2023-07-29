@@ -16,13 +16,14 @@ package fswatcher
 
 import (
 	"fmt"
-	"github.com/Necronir/grok_exporter/tailer/glob"
-	"github.com/prometheus/common/log"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/fstab/grok_exporter/tailer/glob"
+	"github.com/prometheus/common/log"
+	"github.com/sirupsen/logrus"
 )
 
 type FileTailer interface {

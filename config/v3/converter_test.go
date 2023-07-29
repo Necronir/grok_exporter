@@ -17,7 +17,7 @@ package v3
 import (
 	"testing"
 
-	v2 "github.com/Necronir/grok_exporter/config/v2"
+	v2 "github.com/fstab/grok_exporter/config/v2"
 	"gopkg.in/yaml.v2"
 )
 

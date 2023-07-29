@@ -16,10 +16,11 @@ package v3
 
 import (
 	"fmt"
-	v2 "github.com/Necronir/grok_exporter/config/v2"
 	"os"
 	"strconv"
 	"time"
+
+	v2 "github.com/fstab/grok_exporter/config/v2"
 )
 
 func convert(v2cfg *v2.Config) *Config {

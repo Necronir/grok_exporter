@@ -18,11 +18,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	config "github.com/Necronir/grok_exporter/config/v3"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
+
+	config "github.com/fstab/grok_exporter/config/v3"
 )
 
 type HttpServerPathHandler struct {

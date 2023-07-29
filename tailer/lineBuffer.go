@@ -16,10 +16,11 @@ package tailer
 
 import (
 	"container/list"
-	"github.com/Necronir/grok_exporter/tailer/fswatcher"
 	"io"
 	logFatal "log"
 	"sync"
+
+	"github.com/fstab/grok_exporter/tailer/fswatcher"
 )
 
 // lineBuffer is a thread safe queue for *fswatcher.Line.

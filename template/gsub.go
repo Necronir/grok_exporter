@@ -16,9 +16,10 @@ package template
 
 import (
 	"fmt"
-	"github.com/Necronir/grok_exporter/oniguruma"
 	"os"
 	"text/template/parse"
+
+	"github.com/fstab/grok_exporter/oniguruma"
 )
 
 var cache = make(map[string]*oniguruma.Regex)

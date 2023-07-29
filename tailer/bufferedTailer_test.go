@@ -16,12 +16,13 @@ package tailer
 
 import (
 	"fmt"
-	"github.com/Necronir/grok_exporter/tailer/fswatcher"
-	"github.com/sirupsen/logrus"
 	"math/rand"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/fstab/grok_exporter/tailer/fswatcher"
+	"github.com/sirupsen/logrus"
 )
 
 const nTestLines = 10000

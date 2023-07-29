@@ -4,9 +4,9 @@ import (
 	ctx "context"
 	"sync"
 
-	configuration "github.com/Necronir/grok_exporter/config/v3"
-	"github.com/Necronir/grok_exporter/tailer/fswatcher"
 	"github.com/Shopify/sarama"
+	configuration "github.com/fstab/grok_exporter/config/v3"
+	"github.com/fstab/grok_exporter/tailer/fswatcher"
 	"github.com/sirupsen/logrus"
 )
 

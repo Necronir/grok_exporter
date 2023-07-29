@@ -17,12 +17,13 @@ package exporter
 import (
 	"bufio"
 	"fmt"
-	"github.com/Necronir/grok_exporter/tailer/glob"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/fstab/grok_exporter/tailer/glob"
 )
 
 type Patterns map[string]string

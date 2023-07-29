@@ -16,10 +16,6 @@ package tailer
 
 import (
 	"fmt"
-	"github.com/Necronir/grok_exporter/tailer/fswatcher"
-	"github.com/Necronir/grok_exporter/tailer/glob"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"os/user"
@@ -30,6 +26,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fstab/grok_exporter/tailer/fswatcher"
+	"github.com/fstab/grok_exporter/tailer/glob"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 )
 
 const tests = `
@@ -662,7 +663,7 @@ const ( // see 'man logrotate'
 	_copytruncate                            // Truncate the original log file in place instead of removing it.
 	_nocreate                                // Don't create a new logfile after rotation.
 	_create                                  // Create a new empty logfile immediately after rotation.
-	_create_from_temp                        // Like _create, but instead of creating the new logfile directly, logrotate creates an empty tempfile and then moves it to the logfile (see https://github.com/Necronir/grok_exporter/pull/21)
+	_create_from_temp                        // Like _create, but instead of creating the new logfile directly, logrotate creates an empty tempfile and then moves it to the logfile (see https://github.com/fstab/grok_exporter/pull/21)
 )
 
 const (

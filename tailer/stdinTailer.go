@@ -16,9 +16,10 @@ package tailer
 
 import (
 	"bufio"
-	"github.com/Necronir/grok_exporter/tailer/fswatcher"
 	"os"
 	"strings"
+
+	"github.com/fstab/grok_exporter/tailer/fswatcher"
 )
 
 type stdinTailer struct {
