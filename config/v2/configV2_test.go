@@ -23,6 +23,7 @@ import (
 const counter_config = `
 global:
     config_version: 2
+    pushgateway_addr: localhost:9091
 input:
     type: file
     path: x/x/x
@@ -46,6 +47,7 @@ server:
 const gauge_config = `
 global:
     config_version: 2
+    pushgateway_addr: localhost:9091
 input:
     type: file
     path: x/x/x
@@ -67,6 +69,7 @@ server:
 const histogram_config = `
 global:
     config_version: 2
+    pushgateway_addr: localhost:9091
 input:
     type: stdin
 grok:
@@ -86,6 +89,7 @@ server:
 const summary_config = `
 global:
     config_version: 2
+    pushgateway_addr: localhost:9091
 input:
     type: stdin
 grok:
@@ -105,6 +109,7 @@ server:
 const delete_labels_config = `
 global:
     config_version: 2
+    pushgateway_addr: localhost:9091
 input:
     type: stdin
 grok:
@@ -128,6 +133,7 @@ server:
 const retention_config = `
 global:
     config_version: 2
+    pushgateway_addr: localhost:9091
 input:
     type: stdin
 grok:
@@ -148,6 +154,7 @@ server:
 const multiple_paths_config = `
 global:
     config_version: 2
+    pushgateway_addr: localhost:9091
 input:
     type: file
     paths:
@@ -176,6 +183,7 @@ server:
 const empty_grok_section = `
 global:
     config_version: 2
+    pushgateway_addr: localhost:9091
 input:
     type: file
     path: /tmp/test/*.log

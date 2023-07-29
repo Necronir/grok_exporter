@@ -15,9 +15,10 @@
 package v3
 
 import (
-	"github.com/Necronir/grok_exporter/config/v2"
-	"gopkg.in/yaml.v2"
 	"testing"
+
+	v2 "github.com/Necronir/grok_exporter/config/v2"
+	"gopkg.in/yaml.v2"
 )
 
 const empty_v2 = ``
@@ -25,11 +26,13 @@ const empty_v2 = ``
 const empty_v3 = `
 global:
     config_version: 3
+    pushgateway_addr: localhost:9091
 `
 
 const full_v2 = `
 global:
     config_version: 2
+    pushgateway_addr: localhost:9091
     retention_check_interval: 3s
 input:
     type: file
@@ -86,6 +89,7 @@ server:
 const full_v3 = `
 global:
     config_version: 3
+    pushgateway_addr: localhost:9091
     retention_check_interval: 3s
 input:
     type: file
