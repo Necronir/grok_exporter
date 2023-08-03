@@ -453,7 +453,7 @@ func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]st
 }
 
 func deleteMetric(m *metricWithLabels, groupingKey map[string]string) error {
-	return doRequest(m.metric, groupingKey, m.pushgatewayAddr, nil, "DELETE")
+	return doRequest(m.metric, groupingKey, m.pushgatewayAddr, nil, "DELETE", 1)
 }
 
 // formatLabels formats the metric labels in the Prometheus format.
