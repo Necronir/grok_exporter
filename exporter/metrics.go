@@ -241,7 +241,7 @@ func (m *observeMetricWithLabels) processMatch(line string, additionalFields map
 			groupingKey, err := labelValues(m.Name(), searchResult, m.groupingKeyTemplates, additionalFields)
 			if err == nil {
 				fmt.Print(fmt.Sprintf("[PUSH] Pushing metric %v\n", m.Name()))
-				e := pushMetric(m.metricWithLabels, vec, groupingKey, labels)
+				e := pushMetric(m.metricWithLabels, vec, groupingKey, labels, floatVal)
 				if e != nil {
 					fmt.Println(e.Error())
 				}
@@ -427,7 +427,7 @@ func (m *summaryVecMetric) ProcessRetention() error {
 	return m.processRetention(m.summaryVec)
 }
 
-func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]string, labels map[string]string) error {
+func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]string, labels map[string]string, floatval float64) error {
 	collector, ok := vec.(prometheus.Collector)
 	if !ok {
 		return fmt.Errorf("Can not convert deleterMetric to collector")
@@ -436,7 +436,7 @@ func pushMetric(m metricWithLabels, vec deleterMetric, groupingKey map[string]st
 	if err := r.Register(collector); err != nil {
 		return err
 	}
-	err := doRequest(m.metric, groupingKey, m.pushgatewayAddr, r, "POST")
+	err := doRequest(m.metric, groupingKey, m.pushgatewayAddr, r, "POST", floatval)
 	if err != nil {
 		return fmt.Errorf("Can not push metric %v to pushgateway: %v, error with: %v\n", m.Name(), m.pushgatewayAddr, err.Error())
 	}
@@ -496,11 +496,11 @@ func pushMetricToGateway(method, url, metricStr string) error {
 	return nil
 }
 
-func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g prometheus.Gatherer, method string) error {
+func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g prometheus.Gatherer, method string, floatval float64) error {
 
 	job := metric.jobName
 	metricName := metric.name
-	fmt.Print(fmt.Sprintf("[DEBUG] JOB %v and labels: %v\n", job, groupingKey))
+	fmt.Print(fmt.Sprintf("[DEBUG] Metric: %v value: %v\n", metric, floatval))
 	if !strings.Contains(targetUrl, "://") {
 		targetUrl = "http://" + targetUrl
 	}
@@ -524,7 +524,7 @@ func doRequest(metric metric, groupingKey map[string]string, targetUrl string, g
 		urlComponents = append(urlComponents, ln, lv)
 	}
 
-	metricStr := fmt.Sprintf("%v{%v} %v\n", metricName, formatLabels(groupingKey), "1")
+	metricStr := fmt.Sprintf("%v{%v} %v\n", metricName, formatLabels(groupingKey), floatval)
 	targetUrl = fmt.Sprintf("%s/metrics/job/%s", targetUrl, job)
 	err := pushMetricToGateway(method, targetUrl, metricStr)
 	if err != nil {
